@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/cavaliergopher/grab/v3"
 	"github.com/dustin/go-humanize"
+	"github.com/flytam/filenamify"
 	"gopkg.in/yaml.v3"
 	"iwaradl/api"
 	"iwaradl/config"
@@ -56,7 +57,8 @@ func DownloadVideo(vi VideoInfo) {
 	}
 	user, title := api.GetVideoInfo(vi.Ecchi, vi.Vid)
 	path := prepareFolder(user)
-	filename := filepath.Join(path, title+"-"+vi.Vid+".mp4")
+	titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_"})
+	filename := filepath.Join(path, titleSafe+"-"+vi.Vid+".mp4")
 	// check if file exists
 	finfo, err := os.Stat(filename)
 	if err == nil {
@@ -91,7 +93,8 @@ func prepareFolder(username string) string {
 		println(err.Error())
 	}
 	if config.Cfg.UseSubDir && username != "" {
-		path = filepath.Join(path, username)
+		subfolder, _ := filenamify.Filenamify(username, filenamify.Options{Replacement: "_"})
+		path = filepath.Join(path, subfolder)
 		err = os.Mkdir(path, 0755)
 		if err != nil && !errors.Is(err, os.ErrExist) {
 			println(err.Error())
@@ -275,7 +278,8 @@ func ConcurrentDownload() int {
 		//}
 		//path := prepareFolder(user)
 		title, path := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
-		filename := filepath.Join(path, title+"-"+urlList[i].Vid+".mp4")
+		titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_"})
+		filename := filepath.Join(path, titleSafe+"-"+urlList[i].Vid+".mp4")
 		req, err := grab.NewRequest(filename, u)
 		if err != nil {
 			println(err.Error())
@@ -360,7 +364,8 @@ func WriteNfo(ecchi string, vid string) (title string, path string) {
 		return
 	}
 	path = prepareFolder(detailInfo.Author)
-	filename := filepath.Join(path, detailInfo.VideoName+"-"+vid+".nfo")
+	titleSafe, _ := filenamify.Filenamify(detailInfo.VideoName, filenamify.Options{Replacement: "_"})
+	filename := filepath.Join(path, titleSafe+"-"+vid+".nfo")
 	f, err := os.Create(filename)
 	if err != nil {
 		println(err.Error())
