@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cavaliergopher/grab/v3"
+	"github.com/dustin/go-humanize"
 	"gopkg.in/yaml.v3"
 	"iwaradl/api"
 	"iwaradl/config"
@@ -239,9 +240,9 @@ Loop:
 	for {
 		select {
 		case <-t.C:
-			fmt.Printf("\033[u\033[K  transferred %v / %d bytes (%.2f%%)\n",
-				resp.BytesComplete(),
-				resp.Size(),
+			fmt.Printf("\033[u\033[K  transferred %s / %s (%.2f%%)\n",
+				humanize.Bytes(uint64(resp.BytesComplete())),
+				humanize.Bytes(uint64(resp.Size())),
 				100*resp.Progress())
 		case <-resp.Done:
 			break Loop
@@ -339,7 +340,8 @@ func ConcurrentDownload() int {
 				if resp != nil && !resp.IsComplete() {
 					inProgress++
 					filename := filepath.Base(resp.Filename)
-					fmt.Printf("Downloading %s %d / %d bytes (%.2f%%)\033[K\n", filename, resp.BytesComplete(), resp.Size(), 100*resp.Progress())
+					fmt.Printf("Downloading %s %s / %s (%.2f%%)\033[K\n",
+						filename, humanize.Bytes(uint64(resp.BytesComplete())), humanize.Bytes(uint64(resp.Size())), 100*resp.Progress())
 				}
 			}
 		}
