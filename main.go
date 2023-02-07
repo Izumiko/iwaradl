@@ -61,7 +61,9 @@ func main() {
 	failed := len(urlList)
 	for i := 0; i < config.Cfg.MaxRetry && failed > 0; i++ {
 		failed = ConcurrentDownload()
-		time.Sleep(30 * time.Second)
+		if i < config.Cfg.MaxRetry-1 {
+			time.Sleep(30 * time.Second)
+		}
 	}
 
 }

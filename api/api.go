@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 func FetchResp(u string) (resp *http.Response, err error) {
@@ -25,7 +26,7 @@ func FetchResp(u string) (resp *http.Response, err error) {
 			return nil, errors.New("proxy URL scheme error")
 		}
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
@@ -54,7 +55,7 @@ func Fetch(u string) (data []byte, err error) {
 			return nil, errors.New("proxy URL scheme error")
 		}
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {

@@ -138,7 +138,7 @@ func removeDuplicate(sliceList []VideoInfo) []VideoInfo {
 	return list
 }
 
-func SaveUrlList(urlList []VideoInfo) {
+func SaveUrlList(uList []VideoInfo) {
 	_ = os.Mkdir(config.Cfg.RootDir, 0755)
 	urlFile := filepath.Join(config.Cfg.RootDir, "jobs.yaml")
 	file, err := os.OpenFile(urlFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
@@ -146,7 +146,7 @@ func SaveUrlList(urlList []VideoInfo) {
 		println(err.Error())
 	}
 	defer file.Close()
-	urlList = removeDuplicate(urlList)
+	urlList = removeDuplicate(uList)
 	data, err := yaml.Marshal(&urlList)
 	if err != nil {
 		println(err.Error())
@@ -194,8 +194,12 @@ func SaveHistory(vid string) {
 	if err != nil {
 		return
 	}
+	// debug
+	//println("save history: " + vid)
 	urlList = RemoveVid(urlList, vid)
 	SaveUrlList(urlList)
+	// debug
+	//println("remove from jobs: " + vid)
 }
 
 func FindHistory(vid string) bool {
@@ -263,6 +267,7 @@ func ConcurrentDownload() int {
 	reqs := make([]*grab.Request, 0)
 	newList := make([]VideoInfo, 0)
 	newList = append(newList, urlList...)
+	noinfo := 0
 	for i := 0; i < len(urlList); i++ {
 		if FindHistory(urlList[i].Vid) {
 			println("Video " + urlList[i].Vid + " already downloaded")
@@ -278,6 +283,10 @@ func ConcurrentDownload() int {
 		//}
 		//path := prepareFolder(user)
 		title, path := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
+		if title == "" || path == "" || u == "" {
+			noinfo++
+			continue
+		}
 		titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_"})
 		filename := filepath.Join(path, titleSafe+"-"+urlList[i].Vid+".mp4")
 		req, err := grab.NewRequest(filename, u)
@@ -350,11 +359,11 @@ func ConcurrentDownload() int {
 			}
 		}
 	}
-	fmt.Printf("%d files completed: %d successed and %d failed.\n", completed, completed-failed, failed)
+	fmt.Printf("%d files completed, %d successed and %d failed.\n", completed, completed-failed, failed+noinfo)
 
 	SaveUrlList(newList)
 	urlList = newList
-	return failed
+	return failed + noinfo
 }
 
 func WriteNfo(ecchi string, vid string) (title string, path string) {
