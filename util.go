@@ -185,21 +185,18 @@ func RemoveVid(list []VideoInfo, vid string) (l []VideoInfo) {
 
 func SaveHistory(vid string) {
 	historyFile := filepath.Join(config.Cfg.RootDir, "history.list")
-	file, err := os.OpenFile(historyFile, os.O_APPEND|os.O_CREATE, 0644)
+	file, err := os.OpenFile(historyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		println(err.Error())
 	}
 	defer file.Close()
 	_, err = file.WriteString(vid + "\n")
 	if err != nil {
+		println(err.Error())
 		return
 	}
-	// debug
-	//println("save history: " + vid)
 	urlList = RemoveVid(urlList, vid)
 	SaveUrlList(urlList)
-	// debug
-	//println("remove from jobs: " + vid)
 }
 
 func FindHistory(vid string) bool {
