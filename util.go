@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -195,8 +196,6 @@ func SaveHistory(vid string) {
 		println(err.Error())
 		return
 	}
-	urlList = RemoveVid(urlList, vid)
-	SaveUrlList(urlList)
 }
 
 func FindHistory(vid string) bool {
@@ -260,6 +259,7 @@ Loop:
 	return nil
 }
 
+// Get all video info, then download concurrently
 func ConcurrentDownload() int {
 	reqs := make([]*grab.Request, 0)
 	newList := make([]VideoInfo, 0)
@@ -273,12 +273,6 @@ func ConcurrentDownload() int {
 		}
 		println("Getting video info: " + urlList[i].Vid + " ...")
 		u := api.GetVideoUrl(urlList[i].Ecchi, urlList[i].Vid)
-		//user, title := api.GetVideoInfo(urlList[i].Ecchi, urlList[i].Vid)
-		//if user == "" && title == "" {
-		//	println("Get video info " + urlList[i].Vid + " failed")
-		//	continue
-		//}
-		//path := prepareFolder(user)
 		title, path := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
 		if title == "" || path == "" || u == "" {
 			noinfo++
@@ -389,4 +383,139 @@ func WriteNfo(ecchi string, vid string) (title string, path string) {
 	f.Write(b)
 
 	return detailInfo.VideoName, path
+}
+
+// Get video info and download concurrently
+func ConcurrentDownload2() int {
+	// Remove downloaded
+	newList := make([]VideoInfo, 0)
+	newList = append(newList, urlList...)
+	for i := 0; i < len(urlList); i++ {
+		if FindHistory(urlList[i].Vid) {
+			println("Video " + urlList[i].Vid + " already downloaded")
+			newList = RemoveVid(newList, urlList[i].Vid)
+			continue
+		}
+	}
+	urlList = newList
+	SaveUrlList(urlList)
+
+	reqch := make(chan *grab.Request, len(urlList))
+	respch := make(chan *grab.Response, len(urlList))
+
+	// start client with proxy
+	client := grab.NewClient()
+	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
+	if err != nil {
+		println(err.Error())
+		return 0
+	}
+	tr := &http.Transport{Proxy: http.ProxyFromEnvironment}
+	if config.Cfg.ProxyUrl != "" {
+		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
+			tr.Proxy = http.ProxyURL(parsedUrl)
+		}
+	}
+	client.HTTPClient = &http.Client{Transport: tr}
+
+	//start workers
+	wg := sync.WaitGroup{}
+	for i := 0; i < config.Cfg.ThreadNum; i++ {
+		wg.Add(1)
+		go func() {
+			client.DoChannel(reqch, respch)
+			wg.Done()
+		}()
+	}
+
+	failed := 0
+
+	go func() {
+		// send requests
+		for i := 0; i < len(urlList); i++ {
+			u := api.GetVideoUrl(urlList[i].Ecchi, urlList[i].Vid)
+			title, path := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
+			if title == "" || path == "" || u == "" {
+				println("Get video info " + urlList[i].Vid + " failed")
+				failed++
+				req, err := grab.NewRequest(config.Cfg.RootDir, "")
+				if err != nil {
+					panic(err)
+				}
+				reqch <- req
+				continue
+			}
+			titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_"})
+			filename := filepath.Join(path, titleSafe+"-"+urlList[i].Vid+".mp4")
+			req, err := grab.NewRequest(filename, u)
+			if err != nil {
+				println(err.Error())
+				continue
+			}
+			req.HTTPRequest.Header.Set("Cookie", config.Cfg.Cookie)
+
+			reqch <- req
+		}
+		close(reqch)
+
+		// wait for workers to finish
+		wg.Wait()
+		close(respch)
+	}()
+
+	t := time.NewTicker(500 * time.Millisecond)
+	defer t.Stop()
+	fmt.Print("\033[s")
+
+	completed := 0
+	inProgress := 0
+	responses := make([]*grab.Response, 0)
+
+	for completed < len(urlList) {
+		select {
+		case resp := <-respch:
+			if resp != nil {
+				responses = append(responses, resp)
+			}
+		case <-t.C:
+			if inProgress > 0 {
+				fmt.Printf("\033[%dA\033[K", inProgress)
+			}
+			inProgress = 0
+			for i, resp := range responses {
+				if resp != nil && resp.IsComplete() {
+					if resp.Err() != nil {
+						filename := filepath.Base(resp.Filename)
+						fmt.Fprintf(os.Stderr, "Download %v failed: %v\n", filename, resp.Err())
+						failed++
+					} else {
+						fmt.Printf("Download saved to %v \n", resp.Filename)
+						paths := strings.Split(resp.Filename[:len(resp.Filename)-4], "-")
+						SaveHistory(paths[len(paths)-1])
+					}
+					responses[i] = nil
+					completed++
+				}
+			}
+
+			for _, resp := range responses {
+				if resp != nil && !resp.IsComplete() {
+					inProgress++
+					filename := filepath.Base(resp.Filename)
+					fmt.Printf("Downloading %s %s / %s (%.2f%%)\033[K\n",
+						filename, humanize.Bytes(uint64(resp.BytesComplete())), humanize.Bytes(uint64(resp.Size())), 100*resp.Progress())
+				}
+			}
+		}
+	}
+
+	for i := 0; i < len(urlList); i++ {
+		if FindHistory(urlList[i].Vid) {
+			urlList = RemoveVid(urlList, urlList[i].Vid)
+			continue
+		}
+	}
+	SaveUrlList(urlList)
+
+	return failed
 }
