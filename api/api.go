@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// Fetch the url and return the http response
 func FetchResp(u string) (resp *http.Response, err error) {
 	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
 	if err != nil {
@@ -42,6 +43,7 @@ func FetchResp(u string) (resp *http.Response, err error) {
 	return
 }
 
+// Fetch the url and return the response body
 func Fetch(u string) (data []byte, err error) {
 	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
 	if err != nil {
@@ -79,6 +81,7 @@ func Fetch(u string) (data []byte, err error) {
 	return
 }
 
+// Get the username of the video by vid
 func GetUserName(ecchi string, vid string) string {
 	u := "https://" + ecchi + ".iwara.tv/videos/" + vid
 	resp, err := Fetch(u)
@@ -91,6 +94,7 @@ func GetUserName(ecchi string, vid string) string {
 	return username
 }
 
+// Get the title of the video by vid
 func GetVideoName(ecchi string, vid string) string {
 	u := "https://" + ecchi + ".iwara.tv/videos/" + vid
 	resp, err := Fetch(u)
@@ -103,6 +107,7 @@ func GetVideoName(ecchi string, vid string) string {
 	return videoname
 }
 
+// Get the username and title of the video by vid
 func GetVideoInfo(ecchi string, vid string) (string, string) {
 	u := "https://" + ecchi + ".iwara.tv/videos/" + vid
 	resp, err := Fetch(u)
@@ -123,6 +128,7 @@ type downloadInfo struct {
 	Mime       string `json:"mime"`
 }
 
+// Get the mp4 source url of the video by vid
 func GetVideoUrl(ecchi string, vid string) string {
 	u := "https://" + ecchi + ".iwara.tv/api/video/" + vid
 	resp, err := Fetch(u)
@@ -143,6 +149,7 @@ func GetVideoUrl(ecchi string, vid string) string {
 	return ""
 }
 
+// Get the max page of the user's video list
 func GetMaxPage(ecchi string, user string) int {
 	u := "https://" + ecchi + ".iwara.tv/users/" + user + "/videos"
 	resp, err := Fetch(u)
@@ -159,6 +166,7 @@ func GetMaxPage(ecchi string, user string) int {
 	}
 }
 
+// Get the video list of the user
 func GetVideoList(ecchi string, user string) []string {
 	u := "https://" + ecchi + ".iwara.tv/users/" + user
 	resp, err := Fetch(u)
@@ -194,6 +202,7 @@ func GetVideoList(ecchi string, user string) []string {
 	return list
 }
 
+// Get the file size of the video by vid
 func GetVideoSize(ecchi string, vid string) int64 {
 	u := GetVideoUrl(ecchi, vid)
 	resp, err := FetchResp(u)
@@ -213,6 +222,8 @@ type DetailInfo struct {
 	Categories  []string `xml:"genre,omitempty"`
 }
 
+// Get the detail information of the video by vid
+// including author, title, description, release date, year, categories
 func GetDetailInfo(ecchi string, vid string) (DetailInfo, error) {
 	u := "https://" + ecchi + ".iwara.tv/videos/" + vid + "?language=en"
 	resp, err := Fetch(u)
@@ -220,12 +231,16 @@ func GetDetailInfo(ecchi string, vid string) (DetailInfo, error) {
 		return DetailInfo{}, err
 	}
 	html := string(resp)
-	// author
-	reg, _ := regexp.Compile(`class="username">(.+?)</a>`)
-	username := reg.FindAllStringSubmatch(html, -1)[0][1]
 	// video name
-	reg, _ = regexp.Compile(`class="title">(.+?)</h1>`)
-	videoname := reg.FindAllStringSubmatch(html, -1)[0][1]
+	reg, _ := regexp.Compile(`class="title">(.+?)</h1>`)
+	results := reg.FindAllStringSubmatch(html, -1)
+	if len(results) == 0 {
+		return DetailInfo{}, errors.New("video " + vid + " does not exist")
+	}
+	videoname := results[0][1]
+	// author
+	reg, _ = regexp.Compile(`class="username">(.+?)</a>`)
+	username := reg.FindAllStringSubmatch(html, -1)[0][1]
 	// description
 	reg, _ = regexp.Compile(`(?s)<div class="field field-name-body field-type-text-with-summary field-label-hidden"><div class="field-items"><div class="field-item even">(.+?)</div></div></div>`)
 	descriptions := reg.FindAllStringSubmatch(html, -1)

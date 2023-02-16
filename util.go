@@ -273,8 +273,14 @@ func ConcurrentDownload() int {
 		}
 		println("Getting video info: " + urlList[i].Vid + " ...")
 		u := api.GetVideoUrl(urlList[i].Ecchi, urlList[i].Vid)
-		title, path := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
-		if title == "" || path == "" || u == "" {
+		if u == "" {
+			println("Get video url " + urlList[i].Vid + " failed")
+			noinfo++
+			continue
+		}
+		title, path, err := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
+		if err != nil {
+			println(err.Error())
 			noinfo++
 			continue
 		}
@@ -357,11 +363,10 @@ func ConcurrentDownload() int {
 	return failed + noinfo
 }
 
-func WriteNfo(ecchi string, vid string) (title string, path string) {
+func WriteNfo(ecchi string, vid string) (title string, path string, err error) {
 	detailInfo, err := api.GetDetailInfo(ecchi, vid)
-	if detailInfo.Author == "" && detailInfo.VideoName == "" {
-		println("Get video info " + vid + " failed")
-		return
+	if err != nil {
+		return "", "", err
 	}
 	path = prepareFolder(detailInfo.Author)
 	titleSafe, _ := filenamify.Filenamify(detailInfo.VideoName, filenamify.Options{Replacement: "_"})
@@ -369,20 +374,26 @@ func WriteNfo(ecchi string, vid string) (title string, path string) {
 	f, err := os.Create(filename)
 	if err != nil {
 		println(err.Error())
-		return
+		return "", "", err
 	}
 	defer f.Close()
 	// write xml header
-	f.WriteString(xml.Header)
+	_, err = f.WriteString(xml.Header)
+	if err != nil {
+		return "", "", err
+	}
 	// marshal
 	b, err := xml.MarshalIndent(detailInfo, "", "  ")
 	if err != nil {
 		println(err.Error())
-		return
+		return "", "", err
 	}
-	f.Write(b)
+	_, err = f.Write(b)
+	if err != nil {
+		return "", "", err
+	}
 
-	return detailInfo.VideoName, path
+	return detailInfo.VideoName, path, nil
 }
 
 // Get video info and download concurrently
@@ -429,20 +440,23 @@ func ConcurrentDownload2() int {
 	}
 
 	failed := 0
+	emptyReq, _ := grab.NewRequest(config.Cfg.RootDir, "")
 
 	go func() {
 		// send requests
 		for i := 0; i < len(urlList); i++ {
 			u := api.GetVideoUrl(urlList[i].Ecchi, urlList[i].Vid)
-			title, path := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
-			if title == "" || path == "" || u == "" {
-				println("Get video info " + urlList[i].Vid + " failed")
+			if u == "" {
+				println("Get video url " + urlList[i].Vid + " failed")
 				failed++
-				req, err := grab.NewRequest(config.Cfg.RootDir, "")
-				if err != nil {
-					panic(err)
-				}
-				reqch <- req
+				reqch <- emptyReq
+				continue
+			}
+			title, path, err := WriteNfo(urlList[i].Ecchi, urlList[i].Vid)
+			if err != nil {
+				println(err.Error())
+				failed++
+				reqch <- emptyReq
 				continue
 			}
 			titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_"})
