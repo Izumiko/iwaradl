@@ -174,7 +174,7 @@ func GetVideoList(ecchi string, user string) []string {
 		return nil
 	}
 	reg1, _ := regexp.Compile(`class="more-link">.+?<a href="/users/`)
-	reg2, _ := regexp.Compile(`class="title">.+?<a href="/videos/(.+?)">`)
+	reg2, _ := regexp.Compile(`class="title"><a href="/videos/(.+?)">.+?</a>`)
 	hasMore := len(reg1.FindString(string(resp))) > 0
 	var list []string
 	if hasMore {
@@ -187,15 +187,13 @@ func GetVideoList(ecchi string, user string) []string {
 			}
 			vidList := reg2.FindAllStringSubmatch(string(resp), -1)
 			for _, v := range vidList {
-				ud := "https://" + ecchi + ".iwara.tv/videos/" + v[1]
-				list = append(list, ud)
+				list = append(list, v[1])
 			}
 		}
 	} else {
 		vidList := reg2.FindAllStringSubmatch(string(resp), -1)
 		for _, v := range vidList {
-			ud := "https://" + ecchi + ".iwara.tv/videos/" + v[1]
-			list = append(list, ud)
+			list = append(list, v[1])
 		}
 	}
 
