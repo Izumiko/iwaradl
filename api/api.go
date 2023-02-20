@@ -217,6 +217,7 @@ type DetailInfo struct {
 	Description string   `xml:"plot"`
 	ReleaseDate string   `xml:"releasedate"`
 	Year        string   `xml:"year"`
+	AddedDate   string   `xml:"dateadded"`
 	Categories  []string `xml:"genre,omitempty"`
 }
 
@@ -254,6 +255,7 @@ func GetDetailInfo(ecchi string, vid string) (DetailInfo, error) {
 	reg, _ = regexp.Compile(`class="username">.+?</a>.*?on.*?([0-9]{4}-[0-9]{2}-[0-9]{2})`)
 	date := reg.FindAllStringSubmatch(html, -1)[0][1]
 	year := date[:4]
+	currentDate := time.Now().Format("2006-01-02 15:04:05")
 	// categories
 	reg, _ = regexp.Compile(`(?s)class="field field-name-field-categories field-type-taxonomy-term-reference field-label-hidden"><div class="field-items">(.+?)</div></div></div>`)
 	cathtml := reg.FindAllStringSubmatch(html, -1)
@@ -270,5 +272,5 @@ func GetDetailInfo(ecchi string, vid string) (DetailInfo, error) {
 		}
 	}
 
-	return DetailInfo{Author: username, VideoName: videoname, Description: description, ReleaseDate: date, Year: year, Categories: categories}, nil
+	return DetailInfo{Author: username, VideoName: videoname, Description: description, ReleaseDate: date, Year: year, AddedDate: currentDate, Categories: categories}, nil
 }
