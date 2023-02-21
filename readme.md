@@ -1,11 +1,13 @@
 # iwara download tool
+English, [中文说明](readme.zh_CN.md)
+
 ```shell
 Usage: iwaradl [options] URL1 URL2 ...
-Options:                                   
-  -c string                                
+Options:
+  -c string
         config file (default "config.yaml")
-  -l string                                
-        URL list file                      
+  -l string
+        URL list file
   -r    resume unfinished job
 ```
 
