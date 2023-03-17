@@ -1,50 +1,28 @@
 package api
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"io"
 	"iwaradl/config"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"time"
 )
 
-// Fetch the url and return the http response
-func FetchResp(u string) (resp *http.Response, err error) {
-	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
-	if err != nil {
-		return nil, err
-	}
-	tr := &http.Transport{}
-	if config.Cfg.ProxyUrl != "" {
-		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
-			tr.Proxy = http.ProxyURL(parsedUrl)
-		} else {
-			return nil, errors.New("proxy URL scheme error")
-		}
-	}
-	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
-
-	req, err := http.NewRequest("GET", u, nil)
-	if err != nil {
-		return nil, err
-	}
-	if config.Cfg.Cookie != "" {
-		req.Header.Set("Cookie", config.Cfg.Cookie)
-	}
-	resp, err = client.Do(req)
-	if err != nil {
-		return nil, err
-	}
+// Get the video info json from the API server
+func GetVideoInfo(id string) (info VideoInfo, err error) {
+	u := "https://api.iwara.tv/video/" + id
+	body, err := Fetch(u, "")
+	err = json.Unmarshal(body, &info)
 	return
 }
 
 // Fetch the url and return the response body
-func Fetch(u string) (data []byte, err error) {
+func Fetch(u string, xversion string) (data []byte, err error) {
 	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
 	if err != nil {
 		return nil, err
@@ -66,11 +44,27 @@ func Fetch(u string) (data []byte, err error) {
 	if config.Cfg.Cookie != "" {
 		req.Header.Set("Cookie", config.Cfg.Cookie)
 	}
+
+	req.Header.Set("User-Agent", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://www.iwara.tv")
+	req.Header.Set("Referer", "https://www.iwara.tv/")
+	if xversion != "" {
+		req.Header.Set("X-Version", xversion)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			println(err.Error())
+		}
+	}(resp.Body)
 	if resp.StatusCode != 200 {
 		return nil, errors.New("HTTP status code error")
 	}
@@ -81,196 +75,119 @@ func Fetch(u string) (data []byte, err error) {
 	return
 }
 
-// Get the username of the video by vid
-func GetUserName(ecchi string, vid string) string {
-	u := "https://" + ecchi + ".iwara.tv/videos/" + vid
-	resp, err := Fetch(u)
+func SHA1(s string) string {
+	o := sha1.New()
+	o.Write([]byte(s))
+	return hex.EncodeToString(o.Sum(nil))
+}
+
+// Get the mp4 source url of the video info
+func GetVideoUrl(vi VideoInfo) string {
+	u := vi.FileUrl
+	parsed, err := url.Parse(u)
+	expires := parsed.Query().Get("expires")
+	xv := vi.File.Id + "_" + expires + "_5nFp9kmbNnHdAFhaqMvt"
+	xversion := SHA1(xv)
+	body, err := Fetch(u, xversion)
 	if err != nil {
 		return ""
 	}
-	reg, _ := regexp.Compile(`class="username">(.+?)</a>`)
-	username := reg.FindAllStringSubmatch(string(resp), -1)[0][1]
-
-	return username
-}
-
-// Get the title of the video by vid
-func GetVideoName(ecchi string, vid string) string {
-	u := "https://" + ecchi + ".iwara.tv/videos/" + vid
-	resp, err := Fetch(u)
+	var rList []ResolutionInfo
+	err = json.Unmarshal(body, &rList)
 	if err != nil {
 		return ""
 	}
-	reg, _ := regexp.Compile(`class="title">(.+?)</h1>`)
-	videoname := reg.FindAllStringSubmatch(string(resp), -1)[0][1]
-
-	return videoname
-}
-
-// Get the username and title of the video by vid
-func GetVideoInfo(ecchi string, vid string) (string, string) {
-	u := "https://" + ecchi + ".iwara.tv/videos/" + vid
-	resp, err := Fetch(u)
-	if err != nil {
-		return "", ""
-	}
-	reg, _ := regexp.Compile(`class="username">(.+?)</a>`)
-	username := reg.FindAllStringSubmatch(string(resp), -1)[0][1]
-	reg, _ = regexp.Compile(`class="title">(.+?)</h1>`)
-	videoname := reg.FindAllStringSubmatch(string(resp), -1)[0][1]
-
-	return username, videoname
-}
-
-type downloadInfo struct {
-	Resolution string `json:"resolution"`
-	Uri        string `json:"uri"`
-	Mime       string `json:"mime"`
-}
-
-// Get the mp4 source url of the video by vid
-func GetVideoUrl(ecchi string, vid string) string {
-	u := "https://" + ecchi + ".iwara.tv/api/video/" + vid
-	resp, err := Fetch(u)
-	if err != nil {
-		return ""
-	}
-	var dlList []downloadInfo
-	err = json.Unmarshal(resp, &dlList)
-	if err != nil {
-		return ""
-	}
-	for _, v := range dlList {
-		if v.Resolution == "Source" && v.Mime == "video/mp4" {
-			return `https:` + v.Uri
+	for _, v := range rList {
+		if v.Name == "Source" {
+			return `https:` + v.Src.Download
 		}
 	}
 
 	return ""
 }
 
+// Get user profile by username
+func GetUserProfile(username string) (profile UserProfile, err error) {
+	u := "https://api.iwara.tv/profile/" + username
+	body, err := Fetch(u, "")
+	err = json.Unmarshal(body, &profile)
+	return
+}
+
 // Get the max page of the user's video list
-func GetMaxPage(ecchi string, user string) int {
-	u := "https://" + ecchi + ".iwara.tv/users/" + user + "/videos"
-	resp, err := Fetch(u)
+func GetMaxPage(uid string) int {
+	u := "https://api.iwara.tv/videos?limit=8&user=" + uid
+	body, err := Fetch(u, "")
 	if err != nil {
 		return -1
 	}
-	reg, _ := regexp.Compile(`<li class="pager-last last"><a title=".+?" href="/users/.+?/videos\?.*?page=([0-9]{1,3})">`)
-	maxPage := reg.FindAllStringSubmatch(string(resp), -1)
-	if len(maxPage) == 0 {
+	var vList VideoList
+	err = json.Unmarshal(body, &vList)
+	if err != nil {
+		return -1
+	}
+	if vList.Count <= 0 {
 		return 0
+	} else if vList.Count <= 32 {
+		return 1
 	} else {
-		page, _ := strconv.Atoi(maxPage[0][1])
-		return page
+		return vList.Count/32 + 1
 	}
 }
 
 // Get the video list of the user
-func GetVideoList(ecchi string, user string) []string {
-	u := "https://" + ecchi + ".iwara.tv/users/" + user
-	resp, err := Fetch(u)
+func GetVideoList(username string) []VideoInfo {
+	profile, err := GetUserProfile(username)
 	if err != nil {
 		return nil
 	}
-	reg1, _ := regexp.Compile(`class="more-link">.+?<a href="/users/`)
-	reg2, _ := regexp.Compile(`class="title"><a href="/videos/(.+?)">.+?</a>`)
-	hasMore := len(reg1.FindString(string(resp))) > 0
-	var list []string
-	if hasMore {
-		maxPage := GetMaxPage(ecchi, user)
-		for i := 0; i <= maxPage; i++ {
-			u := "https://" + ecchi + ".iwara.tv/users/" + user + "/videos?page=" + strconv.Itoa(i)
-			resp, err := Fetch(u)
-			if err != nil {
-				return nil
-			}
-			vidList := reg2.FindAllStringSubmatch(string(resp), -1)
-			for _, v := range vidList {
-				list = append(list, v[1])
-			}
+	uid := profile.User.Id
+	maxPage := GetMaxPage(uid)
+	var list []VideoInfo
+	for i := 0; i < maxPage; i++ {
+		u := "https://api.iwara.tv/videos?page=" + strconv.Itoa(i) + "&sort=date&user=" + uid
+		body, err := Fetch(u, "")
+		if err != nil {
+			println(err.Error())
+			continue
 		}
-	} else {
-		vidList := reg2.FindAllStringSubmatch(string(resp), -1)
-		for _, v := range vidList {
-			list = append(list, v[1])
+		var vList VideoList
+		err = json.Unmarshal(body, &vList)
+		if err != nil {
+			println(err.Error())
+			continue
+		}
+		for _, v := range vList.Results {
+			list = append(list, v)
 		}
 	}
-
 	return list
 }
 
-// Get the file size of the video by vid
-func GetVideoSize(ecchi string, vid string) int64 {
-	u := GetVideoUrl(ecchi, vid)
-	resp, err := FetchResp(u)
-	if err != nil {
-		return -1
-	}
-	return resp.ContentLength
-}
+//
+//// Get the file size of the video by vid
+//func GetVideoSize(ecchi string, vid string) int64 {
+//	u := GetVideoUrl(ecchi, vid)
+//	resp, err := FetchResp(u)
+//	if err != nil {
+//		return -1
+//	}
+//	return resp.ContentLength
+//}
 
-type DetailInfo struct {
-	XMLName     xml.Name `xml:"musicvideo"`
-	Author      string   `xml:"director"`
-	VideoName   string   `xml:"title"`
-	Description string   `xml:"plot"`
-	ReleaseDate string   `xml:"releasedate"`
-	Year        string   `xml:"year"`
-	AddedDate   string   `xml:"dateadded"`
-	Categories  []string `xml:"genre,omitempty"`
-}
-
-// Get the detail information of the video by vid
-// including author, title, description, release date, year, categories
-func GetDetailInfo(ecchi string, vid string) (DetailInfo, error) {
-	u := "https://" + ecchi + ".iwara.tv/videos/" + vid + "?language=en"
-	resp, err := Fetch(u)
-	if err != nil {
-		return DetailInfo{}, err
-	}
-	html := string(resp)
-	// video name
-	reg, _ := regexp.Compile(`class="title">(.+?)</h1>`)
-	results := reg.FindAllStringSubmatch(html, -1)
-	if len(results) == 0 {
-		return DetailInfo{}, errors.New("video " + vid + " does not exist")
-	}
-	videoname := results[0][1]
-	// author
-	reg, _ = regexp.Compile(`class="username">(.+?)</a>`)
-	username := reg.FindAllStringSubmatch(html, -1)[0][1]
-	// description
-	reg, _ = regexp.Compile(`(?s)<div class="field field-name-body field-type-text-with-summary field-label-hidden"><div class="field-items"><div class="field-item even">(.+?)</div></div></div>`)
-	descriptions := reg.FindAllStringSubmatch(html, -1)
-	description := ""
-	if len(descriptions) > 0 {
-		description = descriptions[0][1]
-		reg, _ = regexp.Compile(`</p>|</br>|<br />`)
-		description = reg.ReplaceAllString(description, "\n")
-		reg, _ = regexp.Compile(`<.+?>`)
-		description = reg.ReplaceAllString(description, "")
-	}
-	// date
-	reg, _ = regexp.Compile(`class="username">.+?</a>.*?on.*?([0-9]{4}-[0-9]{2}-[0-9]{2})`)
-	date := reg.FindAllStringSubmatch(html, -1)[0][1]
-	year := date[:4]
-	currentDate := time.Now().Format("2006-01-02 15:04:05")
-	// categories
-	reg, _ = regexp.Compile(`(?s)class="field field-name-field-categories field-type-taxonomy-term-reference field-label-hidden"><div class="field-items">(.+?)</div></div></div>`)
-	cathtml := reg.FindAllStringSubmatch(html, -1)
+// Get the detail information from video info
+func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
+	var di DetailInfo
+	di.Author = vi.User.Name
+	di.VideoName = vi.Title
+	di.Description = vi.Body
+	di.ReleaseDate = vi.CreatedAt.Format("2006-01-02 15:04:05")
+	di.Year = di.ReleaseDate[:4]
+	di.AddedDate = time.Now().Format("2006-01-02 15:04:05")
 	var categories []string
-	if len(cathtml) > 0 {
-		cathtml1 := cathtml[0][1]
-		reg, _ = regexp.Compile(`<a href="/videos.+?">(.+?)</a>`)
-		cats := reg.FindAllStringSubmatch(cathtml1, -1)
-		for _, v := range cats {
-			if v[1] == "Uncategorized" {
-				continue
-			}
-			categories = append(categories, v[1])
-		}
+	for _, v := range vi.Tags {
+		categories = append(categories, v.Id)
 	}
-
-	return DetailInfo{Author: username, VideoName: videoname, Description: description, ReleaseDate: date, Year: year, AddedDate: currentDate, Categories: categories}, nil
+	di.Categories = categories
+	return di, nil
 }

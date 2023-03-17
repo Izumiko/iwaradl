@@ -14,7 +14,7 @@ var cliFlag struct {
 	resumeJob  bool
 }
 
-var urlList []VideoInfo
+var vidList []string
 
 func init() {
 	flag.StringVar(&cliFlag.configFile, "c", "config.yaml", "config file")
@@ -37,7 +37,7 @@ func main() {
 	}
 	config.LoadConfig(&config.Cfg, cliFlag.configFile)
 	if cliFlag.resumeJob {
-		urlList = LoadUrlList()
+		vidList = LoadVidList()
 	}
 	if flag.NArg() > 0 {
 		processUrlList(flag.Args())
@@ -56,12 +56,12 @@ func main() {
 		urls := strings.Split(string(data), "\n")
 		processUrlList(urls)
 	}
-	SaveUrlList(urlList)
+	SaveVidList(vidList)
 
-	failed := len(urlList)
+	failed := len(vidList)
 	for i := 0; i < config.Cfg.MaxRetry && failed > 0; i++ {
 		failed = ConcurrentDownload2()
-		if i < config.Cfg.MaxRetry-1 {
+		if failed > 0 && i < config.Cfg.MaxRetry-1 {
 			time.Sleep(30 * time.Second)
 		}
 	}
