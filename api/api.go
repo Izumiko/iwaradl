@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var Token string
+
 // Get the video info json from the API server
 func GetVideoInfo(id string) (info VideoInfo, err error) {
 	u := "https://api.iwara.tv/video/" + id
@@ -41,8 +43,14 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	if config.Cfg.Cookie != "" {
-		req.Header.Set("Cookie", config.Cfg.Cookie)
+	if config.Cfg.Authorization != "" && Token == "" {
+		Token, err = GetAccessToken(config.Cfg.Authorization)
+		if err != nil {
+			println(err.Error())
+		}
+	}
+	if Token != "" {
+		req.Header.Set("Authorization", "Bearer "+Token)
 	}
 
 	req.Header.Set("User-Agent", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36")
@@ -190,4 +198,63 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 	}
 	di.Categories = categories
 	return di, nil
+}
+
+// Get access token
+func GetAccessToken(auth string) (string, error) {
+	u := "https://api.iwara.tv/user/token"
+	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
+	if err != nil {
+		return "", err
+	}
+	tr := &http.Transport{}
+	if config.Cfg.ProxyUrl != "" {
+		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
+			tr.Proxy = http.ProxyURL(parsedUrl)
+		} else {
+			return "", errors.New("proxy URL scheme error")
+		}
+	}
+	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest("POST", u, nil)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("User-Agent", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://www.iwara.tv")
+	req.Header.Set("Referer", "https://www.iwara.tv/")
+	req.Header.Set("Authorization", "Bearer "+auth)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			println(err.Error())
+		}
+	}(resp.Body)
+	if resp.StatusCode != 200 {
+		return "", errors.New("HTTP status code error")
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	type Token struct {
+		AccessToken string `json:"accessToken"`
+	}
+
+	var token Token
+	err = json.Unmarshal(data, &token)
+	return token.AccessToken, nil
 }

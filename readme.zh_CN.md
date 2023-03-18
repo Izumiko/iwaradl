@@ -15,7 +15,7 @@
 ```yaml
 rootDir: "D:\\MMD" # 存放视频的目录；mac/Linux下填完整路径，如/home/user/MMD
 useSubDir: false # 是否根据作者创建子目录
-cookie: "" # 登录之后的cookie
+authorization: "" # 登录时用到的token，不好含开头的"Bearer "
 proxyUrl: "http://127.0.0.1:11081" # 代理地址
 threadNum: 4 # 同时进行的任务数
 maxRetry: 3 # 最大尝试下载次数
@@ -27,4 +27,4 @@ maxRetry: 3 # 最大尝试下载次数
 
 使用时，命令行URL或者列表文件至少提供一个。
 
-未完成的任务列表存放在`rootDir/jobs.yaml`，可以使用 `-r` 来继续。已完成的任务记录存放在`rootDir/history.list`中。
+未完成的任务列表存放在`rootDir/jobs.list`，可以使用 `-r` 来继续。已完成的任务记录存放在`rootDir/history.list`中。

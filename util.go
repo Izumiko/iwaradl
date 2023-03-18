@@ -220,7 +220,6 @@ func DownloadFile(vid string, filename string) error {
 	}
 	client.HTTPClient = &http.Client{Transport: tr}
 	req, err := grab.NewRequest(filename, u)
-	req.HTTPRequest.Header.Set("Cookie", config.Cfg.Cookie)
 
 	fmt.Printf("Downloading %v...\n", vid)
 	resp := client.Do(req)
@@ -285,7 +284,6 @@ func ConcurrentDownload() int {
 			println(err.Error())
 			continue
 		}
-		req.HTTPRequest.Header.Set("Cookie", config.Cfg.Cookie)
 		reqs = append(reqs, req)
 	}
 	client := grab.NewClient()
@@ -467,7 +465,6 @@ func ConcurrentDownload2() int {
 				println(err.Error())
 				continue
 			}
-			req.HTTPRequest.Header.Set("Cookie", config.Cfg.Cookie)
 
 			reqch <- req
 		}

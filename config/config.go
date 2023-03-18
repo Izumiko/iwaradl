@@ -13,12 +13,12 @@ func init() {
 }
 
 type Config struct {
-	RootDir   string `yaml:"rootDir"`
-	UseSubDir bool   `yaml:"useSubDir"`
-	Cookie    string `yaml:"cookie"`
-	ProxyUrl  string `yaml:"proxyUrl"`
-	ThreadNum int    `yaml:"threadNum"`
-	MaxRetry  int    `yaml:"maxRetry"`
+	RootDir       string `yaml:"rootDir"`
+	UseSubDir     bool   `yaml:"useSubDir"`
+	Authorization string `yaml:"authorization"`
+	ProxyUrl      string `yaml:"proxyUrl"`
+	ThreadNum     int    `yaml:"threadNum"`
+	MaxRetry      int    `yaml:"maxRetry"`
 }
 
 func LoadConfig(cfg *Config, cfgfile ...string) {

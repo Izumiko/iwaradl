@@ -1,6 +1,6 @@
 rootDir: "Z:\\MMD2"
 useSubDir: false
-cookie: ""
+authorization: ""
 proxyUrl: "http://127.0.0.1:11081"
 threadNum: 3
 maxRetry: 3
