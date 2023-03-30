@@ -189,7 +189,8 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 	di.Author = vi.User.Name
 	di.VideoName = vi.Title
 	di.Description = vi.Body
-	di.ReleaseDate = vi.CreatedAt.Format("2006-01-02 15:04:05")
+	di.ReleaseDate = vi.CreatedAt.Format("2006-01-02")
+	di.Premiered = di.ReleaseDate
 	di.Year = di.ReleaseDate[:4]
 	di.AddedDate = time.Now().Format("2006-01-02 15:04:05")
 	var categories []string

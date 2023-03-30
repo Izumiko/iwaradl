@@ -102,6 +102,7 @@ type DetailInfo struct {
 	VideoName   string   `xml:"title"`
 	Description string   `xml:"plot"`
 	ReleaseDate string   `xml:"releasedate"`
+	Premiered   string   `xml:"premiered"`
 	Year        string   `xml:"year"`
 	AddedDate   string   `xml:"dateadded"`
 	Categories  []string `xml:"genre,omitempty"`
