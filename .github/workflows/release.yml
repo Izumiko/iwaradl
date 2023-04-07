@@ -53,14 +53,22 @@ jobs:
           path: |
             ./iwaradl*
             ./config.yaml
+      - name: Make release folder
+        if: github.event_name == 'release'
+        run: |
+          mkdir release && mv ./iwaradl* ./release/ && mv ./config.yaml ./release/
+      - name: Archive Release
+        uses: thedoctor0/zip-release@0.7.1
+        if: github.event_name == 'release'
+        with:
+          type: 'zip'
+          filename: "iwaradl-${{ env.GOOS }}-${{ env.GOARCH }}.zip"
+          directory: ./release
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         if: github.event_name == 'release'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          asset_name: iwaradl-${{ env.GOOS }}-${{ env.GOARCH }}
-          file: |
-            ./iwaradl*
-            ./config.yaml
+          file: "./release/iwaradl-${{ env.GOOS }}-${{ env.GOARCH }}.zip"
+          asset_name: iwaradl-${{ env.GOOS }}-${{ env.GOARCH }}.zip
           tag: ${{ github.ref }}
-          file_glob: true
