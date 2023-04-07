@@ -15,7 +15,7 @@ import (
 
 var Token string
 
-// Get the video info json from the API server
+// GetVideoInfo Get the video info json from the API server
 func GetVideoInfo(id string) (info VideoInfo, err error) {
 	u := "https://api.iwara.tv/video/" + id
 	body, err := Fetch(u, "")
@@ -89,7 +89,7 @@ func SHA1(s string) string {
 	return hex.EncodeToString(o.Sum(nil))
 }
 
-// Get the mp4 source url of the video info
+// GetVideoUrl Get the mp4 source url of the video info
 func GetVideoUrl(vi VideoInfo) string {
 	u := vi.FileUrl
 	parsed, err := url.Parse(u)
@@ -114,7 +114,7 @@ func GetVideoUrl(vi VideoInfo) string {
 	return ""
 }
 
-// Get user profile by username
+// GetUserProfile Get user profile by username
 func GetUserProfile(username string) (profile UserProfile, err error) {
 	u := "https://api.iwara.tv/profile/" + username
 	body, err := Fetch(u, "")
@@ -122,7 +122,7 @@ func GetUserProfile(username string) (profile UserProfile, err error) {
 	return
 }
 
-// Get the max page of the user's video list
+// GetMaxPage Get the max page of the user's video list
 func GetMaxPage(uid string) int {
 	u := "https://api.iwara.tv/videos?limit=8&user=" + uid
 	body, err := Fetch(u, "")
@@ -143,7 +143,7 @@ func GetMaxPage(uid string) int {
 	}
 }
 
-// Get the video list of the user
+// GetVideoList Get the video list of the user
 func GetVideoList(username string) []VideoInfo {
 	profile, err := GetUserProfile(username)
 	if err != nil {
@@ -183,7 +183,7 @@ func GetVideoList(username string) []VideoInfo {
 //	return resp.ContentLength
 //}
 
-// Get the detail information from video info
+// GetDetailInfo Get the detail information from video info
 func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 	var di DetailInfo
 	di.Author = vi.User.Name
@@ -201,7 +201,7 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 	return di, nil
 }
 
-// Get access token
+// GetAccessToken Get access token
 func GetAccessToken(auth string) (string, error) {
 	u := "https://api.iwara.tv/user/token"
 	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)

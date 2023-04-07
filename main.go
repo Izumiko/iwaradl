@@ -60,7 +60,7 @@ func main() {
 
 	failed := len(vidList)
 	for i := 0; i < config.Cfg.MaxRetry && failed > 0; i++ {
-		failed = ConcurrentDownload2()
+		failed = ConcurrentDownload()
 		if failed > 0 && i < config.Cfg.MaxRetry-1 {
 			time.Sleep(30 * time.Second)
 		}
