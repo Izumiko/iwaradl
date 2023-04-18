@@ -215,33 +215,40 @@ func WriteNfo(vi api.VideoInfo) (title string, path string, err error) {
 // DoChanVid get vid from channel then grab info and download
 func DoChanVid(c *grab.Client, vidch <-chan string, respch chan<- *grab.Response) {
 	for vid := range vidch {
+		emptyReq, _ := grab.NewRequest(vid, "")
 		vi, err := api.GetVideoInfo(vid)
 		if err != nil {
-			println(err.Error())
+			println(vid + ": " + err.Error())
+			resp := c.Do(emptyReq)
+			respch <- resp
 			continue
 		}
 		u := api.GetVideoUrl(vi)
 		if u == "" {
 			println("Get video url " + vid + " failed")
+			resp := c.Do(emptyReq)
+			respch <- resp
 			continue
 		}
 		title, path, err := WriteNfo(vi)
 		if err != nil {
-			println(err.Error())
+			println(vid + ": " + err.Error())
+			resp := c.Do(emptyReq)
+			respch <- resp
 			continue
 		}
 		titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_"})
 		filename := filepath.Join(path, titleSafe+"-"+vid+".mp4")
 		req, err := grab.NewRequest(filename, u)
 		if err != nil {
-			println(err.Error())
+			println(vid + ": " + err.Error())
+			resp := c.Do(emptyReq)
+			respch <- resp
 			continue
 		}
 		resp := c.Do(req)
 		respch <- resp
-		for !resp.IsComplete() {
-			time.Sleep(5 * time.Millisecond)
-		}
+		<-resp.Done
 	}
 }
 

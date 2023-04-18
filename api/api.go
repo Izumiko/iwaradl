@@ -19,6 +19,9 @@ var Token string
 func GetVideoInfo(id string) (info VideoInfo, err error) {
 	u := "https://api.iwara.tv/video/" + id
 	body, err := Fetch(u, "")
+	if err != nil {
+		return
+	}
 	err = json.Unmarshal(body, &info)
 	return
 }
@@ -46,7 +49,8 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 	if config.Cfg.Authorization != "" && Token == "" {
 		Token, err = GetAccessToken(config.Cfg.Authorization)
 		if err != nil {
-			println(err.Error())
+			//println(err.Error())
+			return
 		}
 	}
 	if Token != "" {
@@ -70,11 +74,12 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			println(err.Error())
+			//println(err.Error())
+			return
 		}
 	}(resp.Body)
 	if resp.StatusCode != 200 {
-		return nil, errors.New("HTTP status code error")
+		return nil, errors.New("http status code: " + strconv.Itoa(resp.StatusCode))
 	}
 	data, err = io.ReadAll(resp.Body)
 	if err != nil {
@@ -156,13 +161,13 @@ func GetVideoList(username string) []VideoInfo {
 		u := "https://api.iwara.tv/videos?page=" + strconv.Itoa(i) + "&sort=date&user=" + uid
 		body, err := Fetch(u, "")
 		if err != nil {
-			println(err.Error())
+			println("GetVideoList: user: " + uid + "\t" + err.Error())
 			continue
 		}
 		var vList VideoList
 		err = json.Unmarshal(body, &vList)
 		if err != nil {
-			println(err.Error())
+			println("GetVideoList: json.Unmarshal: " + err.Error())
 			continue
 		}
 		for _, v := range vList.Results {
@@ -244,7 +249,7 @@ func GetAccessToken(auth string) (string, error) {
 		}
 	}(resp.Body)
 	if resp.StatusCode != 200 {
-		return "", errors.New("HTTP status code error")
+		return "", errors.New("status code error: " + strconv.Itoa(resp.StatusCode))
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
