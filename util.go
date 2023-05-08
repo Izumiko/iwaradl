@@ -52,7 +52,7 @@ func prepareFolder(username string) string {
 		println(err.Error())
 	}
 	if config.Cfg.UseSubDir && username != "" {
-		subfolder, _ := filenamify.Filenamify(username, filenamify.Options{Replacement: "_"})
+		subfolder, _ := filenamify.Filenamify(username, filenamify.Options{Replacement: "_", MaxLength: 64})
 		path = filepath.Join(path, subfolder)
 		err = os.Mkdir(path, 0755)
 		if err != nil && !errors.Is(err, os.ErrExist) {
@@ -185,7 +185,7 @@ func WriteNfo(vi api.VideoInfo) (title string, path string, err error) {
 		return "", "", err
 	}
 	path = prepareFolder(detailInfo.Author)
-	titleSafe, _ := filenamify.Filenamify(detailInfo.VideoName, filenamify.Options{Replacement: "_"})
+	titleSafe, _ := filenamify.Filenamify(detailInfo.VideoName, filenamify.Options{Replacement: "_", MaxLength: 64})
 	filename := filepath.Join(path, titleSafe+"-"+vi.Id+".nfo")
 	f, err := os.Create(filename)
 	if err != nil {
@@ -237,7 +237,7 @@ func DoChanVid(c *grab.Client, vidch <-chan string, respch chan<- *grab.Response
 			respch <- resp
 			continue
 		}
-		titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_"})
+		titleSafe, _ := filenamify.Filenamify(title, filenamify.Options{Replacement: "_", MaxLength: 64})
 		filename := filepath.Join(path, titleSafe+"-"+vid+".mp4")
 		req, err := grab.NewRequest(filename, u)
 		if err != nil {
