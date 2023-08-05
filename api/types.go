@@ -58,7 +58,7 @@ type VideoInfo struct {
 	NumViews        int       `json:"numViews"`
 	NumComments     int       `json:"numComments"`
 	File            FileInfo  `json:"file"`
-	CustomThumbnail string    `json:"customThumbnail"`
+	CustomThumbnail FileInfo  `json:"customThumbnail"`
 	User            UserInfo  `json:"user"`
 	Tags            []Tag     `json:"tags"`
 	CreatedAt       time.Time `json:"createdAt"`
