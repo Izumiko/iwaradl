@@ -83,7 +83,7 @@ type ResolutionInfo struct {
 
 type UserProfile struct {
 	Body      string    `json:"body"`
-	Header    string    `json:"header"`
+	Header    FileInfo  `json:"header"`
 	User      UserInfo  `json:"user"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

@@ -54,6 +54,9 @@ func main() {
 			return
 		}
 		urls := strings.Split(string(data), "\n")
+		for i, v := range urls {
+			urls[i] = strings.TrimRight(v, "\r")
+		}
 		processUrlList(urls)
 	}
 	SaveVidList(vidList)
