@@ -184,6 +184,10 @@ func WriteNfo(vi api.VideoInfo) (title string, path string, err error) {
 	if err != nil {
 		return "", "", err
 	}
+
+	// add <br> to description
+	detailInfo.Description = strings.ReplaceAll(detailInfo.Description, "\n", "<br/>\n")
+
 	path = prepareFolder(detailInfo.Author)
 	titleSafe, _ := filenamify.Filenamify(detailInfo.VideoName, filenamify.Options{Replacement: "_", MaxLength: 64})
 	filename := filepath.Join(path, titleSafe+"-"+vi.Id+".nfo")
