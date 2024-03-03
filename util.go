@@ -334,14 +334,14 @@ func ConcurrentDownload() int {
 			inProgress = 0
 			for i, resp := range responses {
 				if resp != nil && resp.IsComplete() {
-					if resp.Err() != nil {
-						filename := filepath.Base(resp.Filename)
-						_, _ = fmt.Fprintf(os.Stderr, "Download %v failed: %v\n", filename, resp.Err())
-					} else {
+					if resp.Err() == nil {
 						fmt.Printf("Download saved to %v \n", resp.Filename)
 						paths := strings.Split(resp.Filename[:len(resp.Filename)-4], "-")
 						SaveHistory(paths[len(paths)-1])
 						succeeded++
+					} else if resp.Request.HTTPRequest.Host != "" {
+						filename := filepath.Base(resp.Filename)
+						_, _ = fmt.Fprintf(os.Stderr, "Download %v failed: %v\n", filename, resp.Err())
 					}
 					responses[i] = nil
 					completed++
