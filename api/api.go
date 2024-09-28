@@ -57,10 +57,14 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 		req.Header.Set("Authorization", "Bearer "+Token)
 	}
 
-	req.Header.Set("User-Agent", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-User", "?1")
 	req.Header.Set("Origin", "https://www.iwara.tv")
 	req.Header.Set("Referer", "https://www.iwara.tv/")
 	if xversion != "" {
