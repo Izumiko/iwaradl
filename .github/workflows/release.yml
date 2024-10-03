@@ -30,10 +30,10 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - name: Checkout codebase
-        uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+        uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: '>=1.20.0'
+          go-version: '>=1.23.0'
           check-latest: true
       - run: go mod download
       
@@ -41,7 +41,7 @@ jobs:
         run: |
           go build -trimpath -ldflags "-s -w -buildid=" .
       - name: Upload files to Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: iwaradl-${{ env.GOOS }}-${{ env.GOARCH }}
           path: |
@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir release && mv ./iwaradl* ./release/ && mv ./config.yaml ./release/
       - name: Archive Release
-        uses: thedoctor0/zip-release@0.7.1
+        uses: thedoctor0/zip-release@0.7.6
         if: github.event_name == 'release'
         with:
           type: 'zip'
