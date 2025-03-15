@@ -102,6 +102,9 @@ func SHA1(s string) string {
 func GetVideoUrl(vi VideoInfo) string {
 	u := vi.FileUrl
 	parsed, err := url.Parse(u)
+	if err != nil {
+		return ""
+	}
 	expires := parsed.Query().Get("expires")
 	xv := vi.File.Id + "_" + expires + "_5nFp9kmbNnHdAFhaqMvt"
 	xversion := SHA1(xv)
@@ -225,10 +228,9 @@ func GetAccessToken(auth string) (string, error) {
 			return "", errors.New("proxy URL scheme error")
 		}
 	}
+
 	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
-	if err != nil {
-		return "", err
-	}
+
 	req, err := http.NewRequest("POST", u, nil)
 	if err != nil {
 		return "", err

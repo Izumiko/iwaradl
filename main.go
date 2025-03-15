@@ -35,7 +35,10 @@ func main() {
 		flag.Usage()
 		return
 	}
-	config.LoadConfig(&config.Cfg, cliFlag.configFile)
+	err := config.LoadConfig(&config.Cfg, cliFlag.configFile)
+	if err != nil {
+		panic(err)
+	}
 	if cliFlag.resumeJob {
 		vidList = LoadVidList()
 	}

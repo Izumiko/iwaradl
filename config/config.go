@@ -9,7 +9,10 @@ import (
 var Cfg Config
 
 func init() {
-	LoadConfig(&Cfg)
+	err := LoadConfig(&Cfg)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type Config struct {
@@ -21,7 +24,11 @@ type Config struct {
 	MaxRetry      int    `yaml:"maxRetry"`
 }
 
-func LoadConfig(cfg *Config, cfgfile ...string) {
+func LoadConfig(cfg *Config, cfgfile ...string) error {
+	if cfg == nil {
+		return errors.New("config pointer cannot be nil")
+	}
+
 	var file string
 	if len(cfgfile) == 0 {
 		file = "config.yaml"
@@ -30,12 +37,16 @@ func LoadConfig(cfg *Config, cfgfile ...string) {
 	}
 	f, err := os.Open(file)
 	if err != nil {
-		errors.New(file + " not found")
+		return errors.New("failed to open config file: " + file + ". Error: " + err.Error())
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 	decoder := yaml.NewDecoder(f)
 	err = decoder.Decode(cfg)
 	if err != nil {
-		errors.New(file + " format error")
+		return errors.New("failed to decode config file: " + file + ". Error: " + err.Error())
 	}
+
+	return nil
 }

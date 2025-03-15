@@ -101,8 +101,11 @@ func SaveVidList(uList []string) {
 	file, err := os.OpenFile(urlFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		println(err.Error())
+		return
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 	vidList = removeDuplicate(uList)
 	for _, v := range vidList {
 		_, err := file.WriteString(v + "\n")
@@ -149,8 +152,11 @@ func SaveHistory(vid string) {
 	file, err := os.OpenFile(historyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		println(err.Error())
+		return
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 	_, err = file.WriteString(vid + "\n")
 	if err != nil {
 		println(err.Error())
@@ -196,7 +202,9 @@ func WriteNfo(vi api.VideoInfo) (title string, path string, err error) {
 		println(err.Error())
 		return "", "", err
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 	// write xml header
 	_, err = f.WriteString(xml.Header)
 	if err != nil {
