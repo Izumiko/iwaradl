@@ -18,37 +18,37 @@ var Token string
 
 // GetVideoInfo Get the video info json from the API server
 func GetVideoInfo(id string) (info VideoInfo, err error) {
-	util.DebugLog("开始获取视频信息，ID: %s", id)
+	util.DebugLog("Starting to get video info, ID: %s", id)
 	u := "https://api.iwara.tv/video/" + id
 	body, err := Fetch(u, "")
 	if err != nil {
-		util.DebugLog("获取视频信息失败: %v", err)
+		util.DebugLog("Failed to get video info: %v", err)
 		return
 	}
 	err = json.Unmarshal(body, &info)
 	if err != nil {
-		util.DebugLog("解析视频信息失败: %v", err)
+		util.DebugLog("Failed to parse video info: %v", err)
 		return
 	}
-	util.DebugLog("成功获取视频信息，标题: %s", info.Title)
+	util.DebugLog("Successfully got video info, title: %s", info.Title)
 	return
 }
 
 // Fetch the url and return the response body
 func Fetch(u string, xversion string) (data []byte, err error) {
-	util.DebugLog("开始请求URL: %s", u)
+	util.DebugLog("Starting to request URL: %s", u)
 	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
 	if err != nil {
-		util.DebugLog("解析代理URL失败: %v", err)
+		util.DebugLog("Failed to parse proxy URL: %v", err)
 		return nil, err
 	}
 	tr := &http.Transport{}
 	if config.Cfg.ProxyUrl != "" {
 		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
 			tr.Proxy = http.ProxyURL(parsedUrl)
-			util.DebugLog("使用代理: %s", config.Cfg.ProxyUrl)
+			util.DebugLog("Using proxy: %s", config.Cfg.ProxyUrl)
 		} else {
-			util.DebugLog("代理URL协议错误: %s", parsedUrl.Scheme)
+			util.DebugLog("Invalid proxy URL scheme: %s", parsedUrl.Scheme)
 			return nil, errors.New("proxy URL scheme error")
 		}
 	}
@@ -56,20 +56,20 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
-		util.DebugLog("创建请求失败: %v", err)
+		util.DebugLog("Failed to create request: %v", err)
 		return nil, err
 	}
 	if config.Cfg.Authorization != "" && Token == "" {
-		util.DebugLog("获取访问令牌")
+		util.DebugLog("Getting access token")
 		Token, err = GetAccessToken(config.Cfg.Authorization)
 		if err != nil {
-			util.DebugLog("获取访问令牌失败: %v", err)
+			util.DebugLog("Failed to get access token: %v", err)
 			return
 		}
 	}
 	if Token != "" {
 		req.Header.Set("Authorization", "Bearer "+Token)
-		util.DebugLog("设置Authorization头")
+		util.DebugLog("Setting Authorization header")
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36")
@@ -84,31 +84,31 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 	req.Header.Set("Referer", "https://www.iwara.tv/")
 	if xversion != "" {
 		req.Header.Set("X-Version", xversion)
-		util.DebugLog("设置X-Version头: %s", xversion)
+		util.DebugLog("Setting X-Version header: %s", xversion)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		util.DebugLog("发送请求失败: %v", err)
+		util.DebugLog("Failed to send request: %v", err)
 		return nil, err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			util.DebugLog("关闭响应体失败: %v", err)
+			util.DebugLog("Failed to close response body: %v", err)
 			return
 		}
 	}(resp.Body)
 	if resp.StatusCode != 200 {
-		util.DebugLog("HTTP状态码错误: %d", resp.StatusCode)
+		util.DebugLog("Invalid HTTP status code: %d", resp.StatusCode)
 		return nil, errors.New("http status code: " + strconv.Itoa(resp.StatusCode))
 	}
 	data, err = io.ReadAll(resp.Body)
 	if err != nil {
-		util.DebugLog("读取响应体失败: %v", err)
+		util.DebugLog("Failed to read response body: %v", err)
 		return nil, err
 	}
-	util.DebugLog("成功获取响应，数据长度: %d", len(data))
+	util.DebugLog("Successfully got response, data length: %d", len(data))
 	return
 }
 
@@ -120,11 +120,11 @@ func SHA1(s string) string {
 
 // GetVideoUrl Get the mp4 source url of the video info
 func GetVideoUrl(vi VideoInfo) string {
-	util.DebugLog("开始获取视频下载地址，ID: %s", vi.Id)
+	util.DebugLog("Starting to get video download URL, ID: %s", vi.Id)
 	u := vi.FileUrl
 	parsed, err := url.Parse(u)
 	if err != nil {
-		util.DebugLog("解析文件URL失败: %v", err)
+		util.DebugLog("Failed to parse file URL: %v", err)
 		return ""
 	}
 	expires := parsed.Query().Get("expires")
@@ -132,22 +132,22 @@ func GetVideoUrl(vi VideoInfo) string {
 	xversion := SHA1(xv)
 	body, err := Fetch(u, xversion)
 	if err != nil {
-		util.DebugLog("获取视频地址失败: %v", err)
+		util.DebugLog("Failed to get video URL: %v", err)
 		return ""
 	}
 	var rList []ResolutionInfo
 	err = json.Unmarshal(body, &rList)
 	if err != nil {
-		util.DebugLog("解析视频地址失败: %v", err)
+		util.DebugLog("Failed to parse video URL: %v", err)
 		return ""
 	}
 	for _, v := range rList {
 		if v.Name == "Source" {
-			util.DebugLog("成功获取视频下载地址")
+			util.DebugLog("Successfully got video download URL")
 			return `https:` + v.Src.Download
 		}
 	}
-	util.DebugLog("未找到源视频地址")
+	util.DebugLog("Source video URL not found")
 	return ""
 }
 
@@ -182,35 +182,35 @@ func GetMaxPage(uid string) int {
 
 // GetVideoList Get the video list of the user
 func GetVideoList(username string) []VideoInfo {
-	util.DebugLog("开始获取用户视频列表，用户名: %s", username)
+	util.DebugLog("Starting to get user video list, username: %s", username)
 	profile, err := GetUserProfile(username)
 	if err != nil {
-		util.DebugLog("获取用户信息失败: %v", err)
+		util.DebugLog("Failed to get user info: %v", err)
 		return nil
 	}
 	uid := profile.User.Id
 	maxPage := GetMaxPage(uid)
-	util.DebugLog("用户ID: %s, 最大页数: %d", uid, maxPage)
+	util.DebugLog("User ID: %s, max pages: %d", uid, maxPage)
 	var list []VideoInfo
 	for i := 0; i < maxPage; i++ {
 		u := "https://api.iwara.tv/videos?page=" + strconv.Itoa(i) + "&sort=date&user=" + uid
 		body, err := Fetch(u, "")
 		if err != nil {
-			util.DebugLog("获取第 %d 页失败: %v", i+1, err)
+			util.DebugLog("Failed to get page %d: %v", i+1, err)
 			continue
 		}
 		var vList VideoList
 		err = json.Unmarshal(body, &vList)
 		if err != nil {
-			util.DebugLog("解析第 %d 页数据失败: %v", i+1, err)
+			util.DebugLog("Failed to parse page %d data: %v", i+1, err)
 			continue
 		}
 		for _, v := range vList.Results {
 			list = append(list, v)
 		}
-		util.DebugLog("成功获取第 %d 页，当前共 %d 个视频", i+1, len(list))
+		util.DebugLog("Successfully got page %d, current total videos: %d", i+1, len(list))
 	}
-	util.DebugLog("完成获取用户视频列表，共 %d 个视频", len(list))
+	util.DebugLog("Completed getting user video list, total videos: %d", len(list))
 	return list
 }
 
@@ -227,7 +227,7 @@ func GetVideoList(username string) []VideoInfo {
 
 // GetDetailInfo Get the detail information from video info
 func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
-	util.DebugLog("开始获取视频详细信息，ID: %s", vi.Id)
+	util.DebugLog("Starting to get video details, ID: %s", vi.Id)
 	var di DetailInfo
 	di.Author = vi.User.Name
 	di.VideoName = vi.Title
@@ -241,7 +241,7 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 		categories = append(categories, v.Id)
 	}
 	di.Categories = categories
-	util.DebugLog("成功获取视频详细信息，标题: %s", di.VideoName)
+	util.DebugLog("Successfully got video details, title: %s", di.VideoName)
 	return di, nil
 }
 
