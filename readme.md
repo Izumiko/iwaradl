@@ -9,6 +9,8 @@ Options:
   -l string
         URL list file
   -r    resume unfinished job
+  --debug
+        enable debug logging
 ```
 
 ### config.yaml
