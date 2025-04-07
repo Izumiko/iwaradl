@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"iwaradl/config"
+	"iwaradl/util"
 	"os"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ var cliFlag struct {
 	configFile string
 	listFile   string
 	resumeJob  bool
+	debug      bool
 }
 
 var vidList []string
@@ -20,6 +22,7 @@ func init() {
 	flag.StringVar(&cliFlag.configFile, "c", "config.yaml", "config file")
 	flag.StringVar(&cliFlag.listFile, "l", "", "URL list file")
 	flag.BoolVar(&cliFlag.resumeJob, "r", false, "resume unfinished job")
+	flag.BoolVar(&cliFlag.debug, "debug", false, "enable debug logging")
 	flag.Usage = usage
 }
 
@@ -38,6 +41,9 @@ func main() {
 	err := config.LoadConfig(&config.Cfg, cliFlag.configFile)
 	if err != nil {
 		panic(err)
+	}
+	if cliFlag.debug {
+		util.Debug = true
 	}
 	if cliFlag.resumeJob {
 		vidList = LoadVidList()
