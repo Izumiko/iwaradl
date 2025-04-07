@@ -23,6 +23,8 @@ threadNum: 4 # concurrent download thread num
 maxRetry: 3 # max retry times
 ```
 
+The token can be got by: open the browser console on the iwara webpage, execute `localStorage.getItem("token")`, and the returned value is the token.
+
 URL can be a video page or a user page.
 
 URL list file is a text file, each line is a URL.
