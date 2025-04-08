@@ -14,15 +14,27 @@ var cliFlag struct {
 	listFile   string
 	resumeJob  bool
 	debug      bool
+	rootDir    string
+	useSubDir  bool
+	auth       string
+	proxyUrl   string
+	threadNum  int
+	maxRetry   int
 }
 
 var vidList []string
 
 func init() {
-	flag.StringVar(&cliFlag.configFile, "c", "config.yaml", "config file")
+	flag.StringVar(&cliFlag.configFile, "c", "config.yaml", "config file (default \"config.yaml\")")
 	flag.StringVar(&cliFlag.listFile, "l", "", "URL list file")
 	flag.BoolVar(&cliFlag.resumeJob, "r", false, "resume unfinished job")
 	flag.BoolVar(&cliFlag.debug, "debug", false, "enable debug logging")
+	flag.StringVar(&cliFlag.rootDir, "root-dir", "", "root directory for videos")
+	flag.BoolVar(&cliFlag.useSubDir, "use-sub-dir", false, "use user name as sub directory")
+	flag.StringVar(&cliFlag.auth, "auth-token", "", "authorization token")
+	flag.StringVar(&cliFlag.proxyUrl, "proxy-url", "", "proxy url")
+	flag.IntVar(&cliFlag.threadNum, "thread-num", -1, "concurrent download thread number (default 3)")
+	flag.IntVar(&cliFlag.maxRetry, "max-retry", -1, "max retry times (default 3)")
 	flag.Usage = usage
 }
 
@@ -42,6 +54,27 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// 命令行参数优先级高于配置文件
+	if cliFlag.rootDir != "" {
+		config.Cfg.RootDir = cliFlag.rootDir
+	}
+	if cliFlag.useSubDir {
+		config.Cfg.UseSubDir = cliFlag.useSubDir
+	}
+	if cliFlag.auth != "" {
+		config.Cfg.Authorization = cliFlag.auth
+	}
+	if cliFlag.proxyUrl != "" {
+		config.Cfg.ProxyUrl = cliFlag.proxyUrl
+	}
+	if cliFlag.threadNum > 0 {
+		config.Cfg.ThreadNum = cliFlag.threadNum
+	}
+	if cliFlag.maxRetry > 0 {
+		config.Cfg.MaxRetry = cliFlag.maxRetry
+	}
+
 	if cliFlag.debug {
 		util.Debug = true
 	}
