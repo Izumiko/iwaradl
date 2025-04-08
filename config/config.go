@@ -10,10 +10,18 @@ import (
 var Cfg Config
 
 func init() {
-	err := LoadConfig(&Cfg)
-	if err != nil {
-		panic(err)
+	// 设置默认值
+	Cfg = Config{
+		RootDir:       ".",
+		UseSubDir:     false,
+		Authorization: "",
+		ProxyUrl:      "",
+		ThreadNum:     3,
+		MaxRetry:      3,
 	}
+
+	// 尝试加载配置文件，如果文件不存在则使用默认值
+	_ = LoadConfig(&Cfg)
 }
 
 type Config struct {
@@ -38,7 +46,8 @@ func LoadConfig(cfg *Config, cfgfile ...string) error {
 	}
 	f, err := os.Open(file)
 	if err != nil {
-		return errors.New("failed to open config file: " + file + ". Error: " + err.Error())
+		// 任何错误都使用默认配置
+		return nil
 	}
 	defer func(f *os.File) {
 		_ = f.Close()
