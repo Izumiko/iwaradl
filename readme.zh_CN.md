@@ -6,7 +6,7 @@
 用法: iwaradl [options] URL1 URL2 ...
 选项:
   -c string
-        config file (default "config.yaml")
+        配置文件 (默认值 "config.yaml")
   -l string
         待下载视频网址列表文件
   -r    继续未完成的下载任务
@@ -21,9 +21,9 @@
   --proxy-url string
         代理地址
   --thread-num int
-        concurrent download thread number (default 3)
+        同时进行的任务数 (默认值 3)
   --max-retry int
-        max retry times (default 3)
+        最大尝试下载次数 (默认值 3)
 ```
 
 ### config.yaml
