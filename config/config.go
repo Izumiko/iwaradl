@@ -12,12 +12,12 @@ var Cfg Config
 func init() {
 	// 设置默认值
 	Cfg = Config{
-		RootDir:       ".",
-		UseSubDir:     false,
-		Authorization: "",
-		ProxyUrl:      "",
-		ThreadNum:     3,
-		MaxRetry:      3,
+		RootDir:       ".",   // 文件下载根目录
+		UseSubDir:     false, // 是否使用子目录(按域名分类)
+		Authorization: "",    // API授权令牌
+		ProxyUrl:      "",    // 代理服务器地址
+		ThreadNum:     3,     // 下载线程数
+		MaxRetry:      3,     // 最大重试次数
 	}
 
 	// 尝试加载配置文件，如果文件不存在则使用默认值
