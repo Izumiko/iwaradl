@@ -40,13 +40,18 @@ var rootCmd = &cobra.Command{
 			return cmd.Help()
 		}
 
+		util.DebugLog("Loading config from file: %s", configFile)
 		err := config.LoadConfig(&config.Cfg, configFile)
 		if err != nil {
-			return err
+			util.DebugLog("Failed to load config: %v", err)
+			// return err
 		}
+		// util.DebugLog("Config loaded successfully")
 
+		util.DebugLog("Processing command line flags")
 		// 命令行参数优先级高于配置文件
 		if rootDir != "" {
+			util.DebugLog("Using root directory from flag: %s", rootDir)
 			config.Cfg.RootDir = rootDir
 		}
 		if useSubDir {
@@ -69,11 +74,14 @@ var rootCmd = &cobra.Command{
 			util.Debug = true
 		}
 
+		util.DebugLog("Starting to process download tasks")
 		// 处理下载任务
 		if resumeJob {
+			util.DebugLog("Resuming previous job")
 			vidList = LoadVidList()
 		}
 		if len(args) > 0 {
+			util.DebugLog("Processing %d URLs from command line arguments", len(args))
 			processUrlList(args)
 		}
 		if listFile != "" {
@@ -91,12 +99,16 @@ var rootCmd = &cobra.Command{
 			}
 			processUrlList(urls)
 		}
+		util.DebugLog("Saving video list with %d entries", len(vidList))
 		SaveVidList(vidList)
 
 		failed := len(vidList)
+		util.DebugLog("Starting download with %d videos", failed)
 		for i := 0; i < config.Cfg.MaxRetry && failed > 0; i++ {
+			util.DebugLog("Download attempt %d/%d", i+1, config.Cfg.MaxRetry)
 			failed = ConcurrentDownload()
 			if failed > 0 && i < config.Cfg.MaxRetry-1 {
+				util.DebugLog("%d videos failed to download, waiting 30s before retry", failed)
 				time.Sleep(30 * time.Second)
 			}
 		}
@@ -122,6 +134,6 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&useSubDir, "use-sub-dir", false, "use user name as sub directory")
 	rootCmd.PersistentFlags().StringVar(&auth, "auth-token", "", "authorization token")
 	rootCmd.PersistentFlags().StringVar(&proxyUrl, "proxy-url", "", "proxy url")
-	rootCmd.PersistentFlags().IntVar(&threadNum, "thread-num", -1, "concurrent download thread number (default 3)")
-	rootCmd.PersistentFlags().IntVar(&maxRetry, "max-retry", -1, "max retry times (default 3)")
+	rootCmd.PersistentFlags().IntVar(&threadNum, "thread-num", -1, "concurrent download thread number")
+	rootCmd.PersistentFlags().IntVar(&maxRetry, "max-retry", -1, "max retry timesc")
 }

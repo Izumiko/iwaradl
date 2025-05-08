@@ -9,7 +9,7 @@ import (
 var Debug bool
 
 // DebugLog 输出调试日志，包含时间戳和代码位置
-func DebugLog(format string, v ...interface{}) {
+func DebugLog(format string, v ...any) {
 	if !Debug {
 		return
 	}
