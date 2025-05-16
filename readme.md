@@ -3,27 +3,36 @@
 English, [中文说明](readme.zh_CN.md)
 
 ```shell
-Usage: iwaradl [options] URL1 URL2 ...
-Options:
-  -c string
-        config file (default "config.yaml")
-  -l string
-        URL list file
-  -r    resume unfinished job
-  --debug
-        enable debug logging
-  --root-dir string
-        root directory for videos
-  --use-sub-dir
-        use user name as sub directory
-  --auth-token string
-        authorization token
-  --proxy-url string
-        proxy url
-  --thread-num int
-        concurrent download thread number (default 3)
-  --max-retry int
-        max retry times (default 3)
+A downloader for iwara.tv that supports:
+- Multiple URLs download
+- URL list file
+- Resume unfinished downloads
+- Custom download directory
+- Proxy support
+
+Usage:
+  iwaradl [flags] [URL...]
+  iwaradl [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  version     Print the version number
+
+Flags:
+      --auth-token string   authorization token
+  -c, --config string       config file (default "config.yaml")
+      --debug               enable debug logging
+  -h, --help                help for iwaradl
+  -l, --list-file string    URL list file
+      --max-retry int       max retry timesc (default -1)
+      --proxy-url string    proxy url
+  -r, --resume              resume unfinished job
+      --root-dir string     root directory for videos
+      --thread-num int      concurrent download thread number (default -1)
+      --use-sub-dir         use user name as sub directory
+
+Use "iwaradl [command] --help" for more information about a command.
 ```
 
 ### config.yaml

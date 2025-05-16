@@ -3,27 +3,36 @@
 [English](readme.md), 中文说明
 
 ```shell
-用法: iwaradl [options] URL1 URL2 ...
-选项:
-  -c string
-        配置文件 (默认值 "config.yaml")
-  -l string
-        待下载视频网址列表文件
-  -r    继续未完成的下载任务
-  --debug
-        启用调试日志输出
-  --root-dir string
-        存放视频的根目录
-  --use-sub-dir
-        是否根据作者创建子目录
-  --auth-token string
-        登录时用到的token
-  --proxy-url string
-        代理地址
-  --thread-num int
-        同时进行的任务数 (默认值 3)
-  --max-retry int
-        最大尝试下载次数 (默认值 3)
+iwara.tv下载器支持功能：
+- 多URL下载
+- URL列表文件
+- 断点续传
+- 自定义下载目录
+- 代理支持
+
+使用方法：
+  iwaradl [参数] [URL...]
+  iwaradl [命令]
+
+可用命令：
+  completion  为指定shell生成自动补全脚本
+  help        查看命令帮助
+  version     打印版本号
+
+参数说明：
+      --auth-token string   授权令牌
+  -c, --config string       配置文件路径（默认为"config.yaml"）
+      --debug               启用调试日志
+  -h, --help                显示帮助信息
+  -l, --list-file string    URL列表文件路径
+      --max-retry int       最大重试次数（默认自动调整）
+      --proxy-url string    代理服务器地址
+  -r, --resume              恢复未完成的任务
+      --root-dir string     视频存储根目录
+      --thread-num int      并发下载线程数（默认自动调整）
+      --use-sub-dir         使用用户名作为子目录
+
+使用"iwaradl [命令] --help"查看具体命令帮助信息。
 ```
 
 ### config.yaml
