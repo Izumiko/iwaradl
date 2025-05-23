@@ -17,6 +17,8 @@ var (
 	debug      bool
 	rootDir    string
 	useSubDir  bool
+	email      string
+	password   string
 	auth       string
 	proxyUrl   string
 	threadNum  int
@@ -56,6 +58,12 @@ var rootCmd = &cobra.Command{
 		}
 		if useSubDir {
 			config.Cfg.UseSubDir = useSubDir
+		}
+		if email != "" {
+			config.Cfg.Email = email
+		}
+		if password != "" {
+			config.Cfg.Password = password
 		}
 		if auth != "" {
 			config.Cfg.Authorization = auth
@@ -132,6 +140,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&rootDir, "root-dir", "", "root directory for videos")
 	rootCmd.PersistentFlags().BoolVar(&useSubDir, "use-sub-dir", false, "use user name as sub directory")
+	rootCmd.PersistentFlags().StringVarP(&email, "email", "u", "", "username for authentication")
+	rootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "password for authentication")
 	rootCmd.PersistentFlags().StringVar(&auth, "auth-token", "", "authorization token")
 	rootCmd.PersistentFlags().StringVar(&proxyUrl, "proxy-url", "", "proxy url")
 	rootCmd.PersistentFlags().IntVar(&threadNum, "thread-num", -1, "concurrent download thread number")

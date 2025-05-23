@@ -1,5 +1,7 @@
-rootDir: "Z:\\MMD2"
+rootDir: "D:\\MMD"
 useSubDir: false
+email:  ""
+password: ""
 authorization: ""
 proxyUrl: "http://127.0.0.1:11081"
 threadNum: 3

@@ -20,6 +20,8 @@ Available Commands:
   version     Print the version number
 
 Flags:
+  -u  --email string        email
+  -p  --password string     password
       --auth-token string   authorization token
   -c, --config string       config file (default "config.yaml")
       --debug               enable debug logging
@@ -40,6 +42,8 @@ Use "iwaradl [command] --help" for more information about a command.
 ```yaml
 rootDir: "D:\\MMD" # root dir for videos. or /home/user/MMD in linux
 useSubDir: false # use user name as sub dir
+email:  "" # email for login
+password: "" #  password for login
 authorization: "" # token for login, without leading "Bearer "
 proxyUrl: "http://127.0.0.1:11081" # proxy url
 threadNum: 4 # concurrent download thread num

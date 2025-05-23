@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -59,12 +60,20 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 		util.DebugLog("Failed to create request: %v", err)
 		return nil, err
 	}
-	if config.Cfg.Authorization != "" && Token == "" {
+	if (config.Cfg.Authorization != "" || config.Cfg.Email != "") && Token == "" {
 		util.DebugLog("Getting access token")
 		Token, err = GetAccessToken(config.Cfg.Authorization)
 		if err != nil {
-			util.DebugLog("Failed to get access token: %v", err)
-			return
+			// Try to refresh the authorization token
+			if config.Cfg.Email != "" && config.Cfg.Password != "" {
+				newAuth, refreshErr := RefreshAuthToken()
+				if refreshErr == nil {
+					Token, err = GetAccessToken(newAuth)
+				} else {
+					util.DebugLog("Failed to refresh authorization token: %v", refreshErr)
+					return nil, refreshErr
+				}
+			}
 		}
 	}
 	if Token != "" {
@@ -155,6 +164,10 @@ func GetVideoUrl(vi VideoInfo) string {
 func GetUserProfile(username string) (profile UserProfile, err error) {
 	u := "https://api.iwara.tv/profile/" + username
 	body, err := Fetch(u, "")
+	if err != nil {
+		util.DebugLog("Failed to get user profile: %v", err)
+		return
+	}
 	err = json.Unmarshal(body, &profile)
 	return
 }
@@ -205,9 +218,7 @@ func GetVideoList(username string) []VideoInfo {
 			util.DebugLog("Failed to parse page %d data: %v", i+1, err)
 			continue
 		}
-		for _, v := range vList.Results {
-			list = append(list, v)
-		}
+		list = append(list, vList.Results...)
 		util.DebugLog("Successfully got page %d, current total videos: %d", i+1, len(list))
 	}
 	util.DebugLog("Completed getting user video list, total videos: %d", len(list))
@@ -245,7 +256,7 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 	return di, nil
 }
 
-// GetAccessToken Get access token
+// GetAccessToken Get access token using authorization token
 func GetAccessToken(auth string) (string, error) {
 	u := "https://api.iwara.tv/user/token"
 	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
@@ -300,5 +311,87 @@ func GetAccessToken(auth string) (string, error) {
 
 	var token Token
 	err = json.Unmarshal(data, &token)
+	if err != nil {
+		return "", err
+	}
 	return token.AccessToken, nil
+}
+
+// RefreshAuthToken Refresh Authorization Token with username and password
+func RefreshAuthToken() (string, error) {
+	u := "https://api.iwara.tv/user/login"
+	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
+	if err != nil {
+		return "", err
+	}
+	tr := &http.Transport{}
+	if config.Cfg.ProxyUrl != "" {
+		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
+			tr.Proxy = http.ProxyURL(parsedUrl)
+		} else {
+			return "", errors.New("proxy URL scheme error")
+		}
+	}
+
+	body := struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}{
+		Email:    config.Cfg.Email,
+		Password: config.Cfg.Password,
+	}
+	bodyData, err := json.Marshal(body)
+	if err != nil {
+		return "", err
+	}
+
+	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
+
+	req, err := http.NewRequest("POST", u, bytes.NewBuffer(bodyData))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://www.iwara.tv")
+	req.Header.Set("Referer", "https://www.iwara.tv/")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			println(err.Error())
+		}
+	}(resp.Body)
+	if resp.StatusCode != 200 {
+		return "", errors.New("status code error: " + strconv.Itoa(resp.StatusCode))
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	type Token struct {
+		AuthToken string `json:"token"`
+	}
+
+	var token Token
+	err = json.Unmarshal(data, &token)
+	if err != nil {
+		return "", err
+	}
+
+	config.Cfg.Authorization = token.AuthToken
+	if err := config.SaveConfig(&config.Cfg); err != nil {
+		util.DebugLog("Failed to save config: %v", err)
+	}
+
+	return token.AuthToken, nil
 }

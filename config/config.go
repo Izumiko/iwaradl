@@ -9,11 +9,15 @@ import (
 
 var Cfg Config
 
+var configFile = "config.yaml"
+
 func init() {
 	// 设置默认值
 	Cfg = Config{
 		RootDir:       ".",   // 文件下载根目录
-		UseSubDir:     false, // 是否使用子目录(按域名分类)
+		UseSubDir:     false, // 是否使用子目录(按作者分类)
+		Email:         "",    // 用户名
+		Password:      "",    // 密码，用于刷新API授权令牌
 		Authorization: "",    // API授权令牌
 		ProxyUrl:      "",    // 代理服务器地址
 		ThreadNum:     3,     // 下载线程数
@@ -27,6 +31,8 @@ func init() {
 type Config struct {
 	RootDir       string `yaml:"rootDir"`
 	UseSubDir     bool   `yaml:"useSubDir"`
+	Email         string `yaml:"email"`
+	Password      string `yaml:"password"`
 	Authorization string `yaml:"authorization"`
 	ProxyUrl      string `yaml:"proxyUrl"`
 	ThreadNum     int    `yaml:"threadNum"`
@@ -38,11 +44,10 @@ func LoadConfig(cfg *Config, cfgfile ...string) error {
 		return errors.New("config pointer cannot be nil")
 	}
 
-	var file string
-	if len(cfgfile) == 0 {
-		file = "config.yaml"
-	} else {
+	file := "config.yaml"
+	if len(cfgfile) > 0 {
 		file = cfgfile[0]
+		configFile = file
 	}
 	f, err := os.Open(file)
 	if err != nil {
@@ -58,5 +63,27 @@ func LoadConfig(cfg *Config, cfgfile ...string) error {
 		return errors.New("failed to decode config file: " + file + ". Error: " + err.Error())
 	}
 
+	return nil
+}
+
+func SaveConfig(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("config pointer cannot be nil")
+	}
+	f, err := os.Create(configFile)
+	if err != nil {
+		return errors.New("failed to create config file: " + configFile + ". Error: " + err.Error())
+	}
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
+	encoder := yaml.NewEncoder(f)
+	defer func(encoder *yaml.Encoder) {
+		_ = encoder.Close()
+	}(encoder)
+	err = encoder.Encode(cfg)
+	if err != nil {
+		return errors.New("failed to encode config file: " + configFile + ". Error: " + err.Error())
+	}
 	return nil
 }

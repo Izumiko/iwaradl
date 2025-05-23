@@ -20,6 +20,8 @@ iwara.tv下载器支持功能：
   version     打印版本号
 
 参数说明：
+  -u  --email string        登录邮箱
+  -p  --password string     登录密码
       --auth-token string   授权令牌
   -c, --config string       配置文件路径（默认为"config.yaml"）
       --debug               启用调试日志
@@ -40,7 +42,9 @@ iwara.tv下载器支持功能：
 ```yaml
 rootDir: "D:\\MMD" # 存放视频的目录；mac/Linux下填完整路径，如/home/user/MMD
 useSubDir: false # 是否根据作者创建子目录
-authorization: "" # 登录时用到的token，不好含开头的"Bearer "
+email:  "" # 登录邮箱
+password: "" # 登录密码
+authorization: "" # 登录时用到的token，不含开头的"Bearer "
 proxyUrl: "http://127.0.0.1:11081" # 代理地址
 threadNum: 4 # 同时进行的任务数
 maxRetry: 3 # 最大尝试下载次数
