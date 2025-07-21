@@ -81,7 +81,10 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 		return nil, err
 	}
 
-	req.Header = commHeaders
+	req.Header = make(http.Header)
+	for k, v := range commHeaders {
+		req.Header[k] = append([]string(nil), v...)
+	}
 
 	if (config.Cfg.Authorization != "" || config.Cfg.Email != "") && Token == "" {
 		util.DebugLog("Getting access token")
@@ -278,7 +281,10 @@ func GetAccessToken(auth string) (string, error) {
 		return "", err
 	}
 
-	req.Header = commHeaders
+	req.Header = make(http.Header)
+	for k, v := range commHeaders {
+		req.Header[k] = append([]string(nil), v...)
+	}
 
 	req.Header.Set("Authorization", "Bearer "+auth)
 
@@ -333,7 +339,10 @@ func RefreshAuthToken() (string, error) {
 		return "", err
 	}
 
-	req.Header = commHeaders
+	req.Header = make(http.Header)
+	for k, v := range commHeaders {
+		req.Header[k] = append([]string(nil), v...)
+	}
 
 	resp, err := Client.Do(req)
 	if err != nil {
