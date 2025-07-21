@@ -6,16 +6,52 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	http "github.com/bogdanfinn/fhttp"
+	tlsClient "github.com/bogdanfinn/tls-client"
+	"github.com/bogdanfinn/tls-client/profiles"
 	"io"
 	"iwaradl/config"
 	"iwaradl/util"
-	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
-var Token string
+var (
+	Token       string
+	Client      tlsClient.HttpClient
+	commHeaders = http.Header{
+		"Accept":          {"application/json"},
+		"Accept-Language": {"en-US,en;q=0.5"},
+		"Content-Type":    {"application/json"},
+		"User-Agent":      {"Mozilla/5.0 (Windows 11 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.6943.99 Safari/537.36"},
+		"Origin":          {"https://www.iwara.tv"},
+		"Referer":         {"https://www.iwara.tv/"},
+	}
+)
+
+func initClient() error {
+	var err error
+	Client, err = tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), tlsClient.WithClientProfile(profiles.Chrome_133))
+	if err != nil {
+		return err
+	}
+	if config.Cfg.ProxyUrl != "" && strings.HasPrefix(config.Cfg.ProxyUrl, "http") {
+		err := Client.SetProxy(config.Cfg.ProxyUrl)
+		if err != nil {
+			return err
+		}
+		util.DebugLog("Using proxy: %s", config.Cfg.ProxyUrl)
+	}
+	return nil
+}
+
+func init() {
+	if err := initClient(); err != nil {
+		panic(err)
+	}
+}
 
 // GetVideoInfo Get the video info json from the API server
 func GetVideoInfo(id string) (info VideoInfo, err error) {
@@ -38,28 +74,15 @@ func GetVideoInfo(id string) (info VideoInfo, err error) {
 // Fetch the url and return the response body
 func Fetch(u string, xversion string) (data []byte, err error) {
 	util.DebugLog("Starting to request URL: %s", u)
-	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
-	if err != nil {
-		util.DebugLog("Failed to parse proxy URL: %v", err)
-		return nil, err
-	}
-	tr := &http.Transport{}
-	if config.Cfg.ProxyUrl != "" {
-		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
-			tr.Proxy = http.ProxyURL(parsedUrl)
-			util.DebugLog("Using proxy: %s", config.Cfg.ProxyUrl)
-		} else {
-			util.DebugLog("Invalid proxy URL scheme: %s", parsedUrl.Scheme)
-			return nil, errors.New("proxy URL scheme error")
-		}
-	}
-	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		util.DebugLog("Failed to create request: %v", err)
 		return nil, err
 	}
+
+	req.Header = commHeaders
+
 	if (config.Cfg.Authorization != "" || config.Cfg.Email != "") && Token == "" {
 		util.DebugLog("Getting access token")
 		Token, err = GetAccessToken(config.Cfg.Authorization)
@@ -81,22 +104,12 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 		util.DebugLog("Setting Authorization header")
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Sec-Fetch-Dest", "document")
-	req.Header.Set("Sec-Fetch-Mode", "navigate")
-	req.Header.Set("Sec-Fetch-Site", "none")
-	req.Header.Set("Sec-Fetch-User", "?1")
-	req.Header.Set("Origin", "https://www.iwara.tv")
-	req.Header.Set("Referer", "https://www.iwara.tv/")
 	if xversion != "" {
 		req.Header.Set("X-Version", xversion)
 		util.DebugLog("Setting X-Version header: %s", xversion)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := Client.Do(req)
 	if err != nil {
 		util.DebugLog("Failed to send request: %v", err)
 		return nil, err
@@ -259,35 +272,17 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 // GetAccessToken Get access token using authorization token
 func GetAccessToken(auth string) (string, error) {
 	u := "https://api.iwara.tv/user/token"
-	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
-	if err != nil {
-		return "", err
-	}
-	tr := &http.Transport{}
-	if config.Cfg.ProxyUrl != "" {
-		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
-			tr.Proxy = http.ProxyURL(parsedUrl)
-		} else {
-			return "", errors.New("proxy URL scheme error")
-		}
-	}
-
-	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
 
 	req, err := http.NewRequest("POST", u, nil)
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", "https://www.iwara.tv")
-	req.Header.Set("Referer", "https://www.iwara.tv/")
+	req.Header = commHeaders
+
 	req.Header.Set("Authorization", "Bearer "+auth)
 
-	resp, err := client.Do(req)
+	resp, err := Client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -320,18 +315,6 @@ func GetAccessToken(auth string) (string, error) {
 // RefreshAuthToken Refresh Authorization Token with username and password
 func RefreshAuthToken() (string, error) {
 	u := "https://api.iwara.tv/user/login"
-	parsedUrl, err := url.Parse(config.Cfg.ProxyUrl)
-	if err != nil {
-		return "", err
-	}
-	tr := &http.Transport{}
-	if config.Cfg.ProxyUrl != "" {
-		if parsedUrl.Scheme == "http" || parsedUrl.Scheme == "https" {
-			tr.Proxy = http.ProxyURL(parsedUrl)
-		} else {
-			return "", errors.New("proxy URL scheme error")
-		}
-	}
 
 	body := struct {
 		Email    string `json:"email"`
@@ -345,21 +328,14 @@ func RefreshAuthToken() (string, error) {
 		return "", err
 	}
 
-	client := &http.Client{Transport: tr, Timeout: 6 * time.Second}
-
 	req, err := http.NewRequest("POST", u, bytes.NewBuffer(bodyData))
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", "https://www.iwara.tv")
-	req.Header.Set("Referer", "https://www.iwara.tv/")
+	req.Header = commHeaders
 
-	resp, err := client.Do(req)
+	resp, err := Client.Do(req)
 	if err != nil {
 		return "", err
 	}
