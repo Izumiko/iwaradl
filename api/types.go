@@ -107,3 +107,52 @@ type DetailInfo struct {
 	AddedDate   string   `xml:"dateadded"`
 	Categories  []string `xml:"genre,omitempty"`
 }
+
+// JellyfinNfo a more compatible struct for Jellyfin nfo files
+type JellyfinNfo struct {
+	XMLName     xml.Name `xml:"musicvideo"`
+	Title       string   `xml:"title"`
+	Director    string   `xml:"director"`
+	Year        string   `xml:"year"`
+	Plot        string   `xml:"plot"`
+	Runtime     int      `xml:"runtime,omitempty"`
+	DateAdded   string   `xml:"dateadded,omitempty"`
+	ReleaseDate string   `xml:"releasedate,omitempty"`
+	Premiered   string   `xml:"premiered,omitempty"`
+	Genre       []string `xml:"genre,omitempty"`
+	LockData    bool     `xml:"lockdata,omitempty"`
+	Art         struct {
+		Poster string `xml:"poster,omitempty"`
+	} `xml:"art,omitempty"`
+	Fileinfo struct {
+		Streamdetails struct {
+			Video struct {
+				Codec             string  `xml:"codec,omitempty"`
+				Micodec           string  `xml:"micodec,omitempty"`
+				Bitrate           int     `xml:"bitrate,omitempty"`
+				Width             int     `xml:"width,omitempty"`
+				Height            int     `xml:"height,omitempty"`
+				Aspect            string  `xml:"aspect,omitempty"`
+				Aspectratio       string  `xml:"aspectratio,omitempty"`
+				Framerate         float32 `xml:"framerate,omitempty"`
+				Language          string  `xml:"language,omitempty"`
+				Scantype          string  `xml:"scantype,omitempty"`
+				Default           string  `xml:"default,omitempty"`
+				Forced            string  `xml:"forced,omitempty"`
+				Duration          int     `xml:"duration,omitempty"`
+				Durationinseconds int     `xml:"durationinseconds,omitempty"`
+			} `xml:"video,omitempty"`
+			Audio struct {
+				Codec        string `xml:"codec,omitempty"`
+				Micodec      string `xml:"micodec,omitempty"`
+				Bitrate      int    `xml:"bitrate,omitempty"`
+				Language     string `xml:"language,omitempty"`
+				Scantype     string `xml:"scantype,omitempty"`
+				Channels     int    `xml:"channels,omitempty"`
+				Samplingrate int    `xml:"samplingrate,omitempty"`
+				Default      string `xml:"default,omitempty"`
+				Forced       string `xml:"forced,omitempty"`
+			} `xml:"audio,omitempty"`
+		} `xml:"streamdetails,omitempty"`
+	} `xml:"fileinfo,omitempty"`
+}

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"iwaradl/config"
 	"iwaradl/util"
 	"os"
@@ -11,19 +12,21 @@ import (
 )
 
 var (
-	configFile string
-	listFile   string
-	resumeJob  bool
-	debug      bool
-	rootDir    string
-	useSubDir  bool
-	email      string
-	password   string
-	auth       string
-	proxyUrl   string
-	threadNum  int
-	maxRetry   int
-	vidList    []string
+	configFile  string
+	listFile    string
+	resumeJob   bool
+	updateNfo   bool
+	updateDelay int
+	debug       bool
+	rootDir     string
+	useSubDir   bool
+	email       string
+	password    string
+	auth        string
+	proxyUrl    string
+	threadNum   int
+	maxRetry    int
+	vidList     []string
 )
 
 // rootCmd represents the base command
@@ -38,7 +41,7 @@ var rootCmd = &cobra.Command{
 - Proxy support`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if !resumeJob && len(args) == 0 && listFile == "" {
+		if !resumeJob && len(args) == 0 && listFile == "" && !updateNfo {
 			return cmd.Help()
 		}
 
@@ -80,6 +83,14 @@ var rootCmd = &cobra.Command{
 
 		if debug {
 			util.Debug = true
+		}
+
+		if updateNfo {
+			if rootDir == "" {
+				return errors.New("root-dir flag must be specified when updating nfo files")
+			}
+			UpdateNfoFiles(rootDir, updateDelay)
+			return nil
 		}
 
 		util.DebugLog("Starting to process download tasks")
@@ -137,6 +148,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "config.yaml", "config file")
 	rootCmd.PersistentFlags().StringVarP(&listFile, "list-file", "l", "", "URL list file")
 	rootCmd.PersistentFlags().BoolVarP(&resumeJob, "resume", "r", false, "resume unfinished job")
+	rootCmd.PersistentFlags().BoolVar(&updateNfo, "update-nfo", false, "update nfo files in root directory")
+	rootCmd.PersistentFlags().IntVar(&updateDelay, "update-delay", 1, "delay in seconds between updating each nfo file (default: 1)")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&rootDir, "root-dir", "", "root directory for videos")
 	rootCmd.PersistentFlags().BoolVar(&useSubDir, "use-sub-dir", false, "use user name as sub directory")
@@ -145,5 +158,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&auth, "auth-token", "", "authorization token")
 	rootCmd.PersistentFlags().StringVar(&proxyUrl, "proxy-url", "", "proxy url")
 	rootCmd.PersistentFlags().IntVar(&threadNum, "thread-num", -1, "concurrent download thread number")
-	rootCmd.PersistentFlags().IntVar(&maxRetry, "max-retry", -1, "max retry timesc")
+	rootCmd.PersistentFlags().IntVar(&maxRetry, "max-retry", -1, "max retry times")
 }

@@ -27,12 +27,14 @@ Flags:
       --debug               enable debug logging
   -h, --help                help for iwaradl
   -l, --list-file string    URL list file
-      --max-retry int       max retry timesc (default -1)
+      --max-retry int       max retry times (default -1)
       --proxy-url string    proxy url
   -r, --resume              resume unfinished job
       --root-dir string     root directory for videos
       --thread-num int      concurrent download thread number (default -1)
       --use-sub-dir         use user name as sub directory
+      --update-nfo          update nfo files in root directory (--root-dir flag required)
+      --update-delay        delay in seconds between updating each nfo file (default: 1)
 
 Use "iwaradl [command] --help" for more information about a command.
 ```

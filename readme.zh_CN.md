@@ -33,6 +33,8 @@ iwara.tv下载器支持功能：
       --root-dir string     视频存储根目录
       --thread-num int      并发下载线程数（默认自动调整）
       --use-sub-dir         使用用户名作为子目录
+      --update-nfo          更新指定根目录下的nfo文件（--root-dir必须指定）
+      --update-delay        nfo文件更新间隔时间，单位秒（默认: 1）
 
 使用"iwaradl [命令] --help"查看具体命令帮助信息。
 ```
