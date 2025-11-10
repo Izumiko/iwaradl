@@ -5,7 +5,7 @@ go 1.24.1
 toolchain go1.24.5
 
 require (
-	github.com/bogdanfinn/fhttp v0.6.2
+	github.com/bogdanfinn/fhttp v0.6.3
 	github.com/bogdanfinn/tls-client v1.11.2
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/dustin/go-humanize v1.0.1
