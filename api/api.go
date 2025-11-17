@@ -23,27 +23,59 @@ var (
 	Token       string
 	Client      tlsClient.HttpClient
 	commHeaders = http.Header{
-		"Accept":          {"application/json"},
-		"Accept-Language": {"en-US,en;q=0.5"},
-		"Content-Type":    {"application/json"},
-		"User-Agent":      {"Mozilla/5.0 (Windows 11 x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.6943.99 Safari/537.36"},
-		"Origin":          {"https://www.iwara.tv"},
-		"Referer":         {"https://www.iwara.tv/"},
+		"accept":                    {"application/json"},
+		"accept-encoding":           {"gzip, deflate, br, zstd"},
+		"accept-language":           {"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6"},
+		"content-type":              {"application/json"},
+		"origin":                    {"https://www.iwara.tv"},
+		"priority":                  {"u=1, i"},
+		"referer":                   {"https://www.iwara.tv/"},
+		"sec-ch-ua":                 {`\"Chromium\";v=\"133\", \"Google Chrome\";v=\"133\", \"Not_A Brand\";v=\"99\"`},
+		"sec-ch-ua-mobile":          {"?0"},
+		"sec-ch-ua-platform":        {`"Windows"`},
+		"sec-fetch-dest":            {"document"},
+		"sec-fetch-mode":            {"navigate"},
+		"sec-fetch-site":            {"none"},
+		"sec-fetch-user":            {"?1"},
+		"upgrade-insecure-requests": {"1"},
+		"user-agent":                {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.6831.68 Safari/537.36"},
+		http.HeaderOrderKey: {
+			"accept",
+			"accept-encoding",
+			"accept-language",
+			"content-type",
+			"origin",
+			"priority",
+			"referer",
+			"sec-ch-ua",
+			"sec-ch-ua-mobile",
+			"sec-ch-ua-platform",
+			"sec-fetch-dest",
+			"sec-fetch-mode",
+			"sec-fetch-site",
+			"sec-fetch-user",
+			"upgrade-insecure-requests",
+			"user-agent",
+		},
 	}
 )
 
 func initClient() error {
 	var err error
-	Client, err = tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), tlsClient.WithClientProfile(profiles.Chrome_133))
-	if err != nil {
-		return err
+	options := []tlsClient.HttpClientOption{
+		tlsClient.WithTimeoutSeconds(60),
+		tlsClient.WithClientProfile(profiles.Chrome_133_PSK),
+		//tlsClient.WithNotFollowRedirects(),
+		tlsClient.WithCookieJar(tlsClient.NewCookieJar()),
+		// tls_client.WithInsecureSkipVerify(),
 	}
 	if config.Cfg.ProxyUrl != "" && strings.HasPrefix(config.Cfg.ProxyUrl, "http") {
-		err := Client.SetProxy(config.Cfg.ProxyUrl)
-		if err != nil {
-			return err
-		}
+		options = append(options, tlsClient.WithProxyUrl(config.Cfg.ProxyUrl))
 		util.DebugLog("Using proxy: %s", config.Cfg.ProxyUrl)
+	}
+	Client, err = tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), options...)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -98,7 +130,7 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 					Token, err = GetAccessToken(newAuth)
 				} else {
 					util.DebugLog("Failed to refresh authorization token: %v", refreshErr)
-					return nil, refreshErr
+					//return nil, refreshErr
 				}
 			}
 		}
