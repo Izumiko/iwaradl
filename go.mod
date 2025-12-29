@@ -5,7 +5,7 @@ go 1.24.1
 toolchain go1.24.5
 
 require (
-	github.com/bogdanfinn/fhttp v0.6.3
+	github.com/bogdanfinn/fhttp v0.6.4
 	github.com/bogdanfinn/tls-client v1.11.2
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/dustin/go-humanize v1.0.1
@@ -17,8 +17,7 @@ require (
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bogdanfinn/quic-go-utls v1.0.4-utls // indirect
-	github.com/bogdanfinn/utls v1.7.4-barnius // indirect
-	github.com/cloudflare/circl v1.6.1 // indirect
+	github.com/bogdanfinn/utls v1.7.5-barnius // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
