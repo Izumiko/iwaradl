@@ -30,10 +30,10 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - name: Checkout codebase
-        uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+        uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
-          go-version: '>=1.23.0'
+          go-version: '>=1.25.0'
           check-latest: true
       - run: go mod download
       
@@ -41,7 +41,7 @@ jobs:
         run: |
           go build -trimpath -ldflags "-s -w -buildid=" .
       - name: Upload files to Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: iwaradl-${{ env.GOOS }}-${{ env.GOARCH }}
           path: |
