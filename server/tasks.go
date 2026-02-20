@@ -134,6 +134,8 @@ func pickPendingTasks() []string {
 
 func downloadBatch(vids []string) {
 	downloader.VidList = append([]string(nil), vids...)
+	downloader.SetProgressHook(updateTaskProgress)
+	defer downloader.SetProgressHook(nil)
 
 	maxRetry := config.Cfg.MaxRetry
 	if maxRetry <= 0 {
@@ -162,6 +164,43 @@ func downloadBatch(vids []string) {
 		}
 		t.Status = "failed"
 		t.Progress = 0
+	}
+}
+
+func updateTaskProgress(report downloader.ProgressReport) {
+	if report.VID == "" {
+		return
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	t, ok := store[report.VID]
+	if !ok {
+		return
+	}
+
+	if report.Done {
+		if report.Success {
+			t.Status = "completed"
+			t.Progress = 1
+		} else {
+			t.Status = "failed"
+		}
+		return
+	}
+
+	if t.Status == "pending" {
+		t.Status = "running"
+	}
+	if report.BytesTotal > 0 {
+		p := float32(report.BytesComplete) / float32(report.BytesTotal)
+		if p < 0 {
+			p = 0
+		}
+		if p > 1 {
+			p = 1
+		}
+		t.Progress = p
 	}
 }
 

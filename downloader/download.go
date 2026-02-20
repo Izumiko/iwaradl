@@ -18,6 +18,45 @@ import (
 	"github.com/flytam/filenamify"
 )
 
+type ProgressReport struct {
+	VID           string
+	BytesComplete int64
+	BytesTotal    int64
+	Done          bool
+	Success       bool
+}
+
+var (
+	progressHookMu sync.RWMutex
+	progressHook   func(ProgressReport)
+)
+
+func SetProgressHook(hook func(ProgressReport)) {
+	progressHookMu.Lock()
+	defer progressHookMu.Unlock()
+	progressHook = hook
+}
+
+func emitProgress(report ProgressReport) {
+	progressHookMu.RLock()
+	hook := progressHook
+	progressHookMu.RUnlock()
+	if hook != nil {
+		hook(report)
+	}
+}
+
+func vidFromFilename(filename string) string {
+	base := filepath.Base(filename)
+	if strings.HasSuffix(base, ".mp4") {
+		base = strings.TrimSuffix(base, ".mp4")
+	}
+	if idx := strings.LastIndex(base, "-"); idx >= 0 && idx < len(base)-1 {
+		return base[idx+1:]
+	}
+	return strings.TrimSpace(base)
+}
+
 // DoChanVid get vid from channel then grab info and download
 func DoChanVid(c *grab.Client, vidch <-chan string, respch chan<- *grab.Response) {
 	for vid := range vidch {
@@ -141,17 +180,20 @@ func ConcurrentDownload() int {
 			inProgress = 0
 			for i, resp := range responses {
 				if resp != nil && resp.IsComplete() {
+					vid := vidFromFilename(resp.Filename)
 					if resp.Err() == nil {
 						fmt.Printf("Download saved to %v \n", resp.Filename)
-						paths := strings.Split(resp.Filename[:len(resp.Filename)-4], "-")
-						vid := paths[len(paths)-1]
 						util.DebugLog("Download completed successfully: %s", vid)
 						SaveHistory(vid)
+						emitProgress(ProgressReport{VID: vid, BytesComplete: resp.Size(), BytesTotal: resp.Size(), Done: true, Success: true})
 						succeeded++
 					} else if resp.Request.HTTPRequest.Host != "" {
 						util.DebugLog("Download failed: %s, error: %v", filepath.Base(resp.Filename), resp.Err())
 						filename := filepath.Base(resp.Filename)
 						_, _ = fmt.Fprintf(os.Stderr, "Download %v failed: %v\n", filename, resp.Err())
+						emitProgress(ProgressReport{VID: vid, BytesComplete: resp.BytesComplete(), BytesTotal: resp.Size(), Done: true, Success: false})
+					} else {
+						emitProgress(ProgressReport{VID: vid, BytesComplete: resp.BytesComplete(), BytesTotal: resp.Size(), Done: true, Success: false})
 					}
 					responses[i] = nil
 					completed++
@@ -162,6 +204,7 @@ func ConcurrentDownload() int {
 				if resp != nil && !resp.IsComplete() {
 					inProgress++
 					filename := filepath.Base(resp.Filename)
+					emitProgress(ProgressReport{VID: vidFromFilename(resp.Filename), BytesComplete: resp.BytesComplete(), BytesTotal: resp.Size(), Done: false, Success: false})
 					fmt.Printf("Downloading %s %s / %s (%.2f%%)\033[K\n",
 						filename, humanize.Bytes(uint64(resp.BytesComplete())), humanize.Bytes(uint64(resp.Size())), 100*resp.Progress())
 				}
