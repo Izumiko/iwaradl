@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"iwaradl/config"
+	"iwaradl/downloader"
 	"iwaradl/util"
 	"os"
 	"strings"
@@ -26,7 +27,7 @@ var (
 	proxyUrl    string
 	threadNum   int
 	maxRetry    int
-	vidList     []string
+	//vidList     []string
 )
 
 // rootCmd represents the base command
@@ -89,7 +90,7 @@ var rootCmd = &cobra.Command{
 			if rootDir == "" {
 				return errors.New("root-dir flag must be specified when updating nfo files")
 			}
-			UpdateNfoFiles(rootDir, updateDelay)
+			downloader.UpdateNfoFiles(rootDir, updateDelay)
 			return nil
 		}
 
@@ -97,11 +98,11 @@ var rootCmd = &cobra.Command{
 		// 处理下载任务
 		if resumeJob {
 			util.DebugLog("Resuming previous job")
-			vidList = LoadVidList()
+			downloader.LoadVidList()
 		}
 		if len(args) > 0 {
 			util.DebugLog("Processing %d URLs from command line arguments", len(args))
-			processUrlList(args)
+			downloader.VidList = downloader.ProcessUrlList(args)
 		}
 		if listFile != "" {
 			_, err := os.Stat(listFile)
@@ -116,16 +117,15 @@ var rootCmd = &cobra.Command{
 			for i, v := range urls {
 				urls[i] = strings.TrimRight(v, "\r")
 			}
-			processUrlList(urls)
+			downloader.VidList = downloader.ProcessUrlList(urls)
 		}
-		util.DebugLog("Saving video list with %d entries", len(vidList))
-		SaveVidList(vidList)
+		downloader.SaveVidList()
 
-		failed := len(vidList)
+		failed := len(downloader.VidList)
 		util.DebugLog("Starting download with %d videos", failed)
 		for i := 0; i < config.Cfg.MaxRetry && failed > 0; i++ {
 			util.DebugLog("Download attempt %d/%d", i+1, config.Cfg.MaxRetry)
-			failed = ConcurrentDownload()
+			failed = downloader.ConcurrentDownload()
 			if failed > 0 && i < config.Cfg.MaxRetry-1 {
 				util.DebugLog("%d videos failed to download, waiting 30s before retry", failed)
 				time.Sleep(30 * time.Second)
