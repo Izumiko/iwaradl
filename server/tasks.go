@@ -5,7 +5,6 @@ import (
 	"iwaradl/config"
 	"iwaradl/downloader"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 	"text/template"
@@ -251,7 +250,7 @@ func updateTaskProgress(report downloader.ProgressReport) {
 func resolveTaskOptions(req TaskOptions) (TaskOptions, error) {
 	opts := TaskOptions{
 		ProxyURL:         strings.TrimSpace(config.Cfg.ProxyUrl),
-		DownloadDir:      strings.TrimSpace(config.Cfg.RootDir),
+		DownloadDir:      "",
 		MaxRetry:         config.Cfg.MaxRetry,
 		FilenameTemplate: strings.TrimSpace(config.Cfg.FilenameTemplate),
 	}
@@ -269,15 +268,11 @@ func resolveTaskOptions(req TaskOptions) (TaskOptions, error) {
 		opts.ProxyURL = v
 	}
 	if v := strings.TrimSpace(req.DownloadDir); v != "" {
-		if _, err := variableTemplateParser().Parse(v); err != nil {
+		converted := downloader.ConvertExternalTemplate(v)
+		if _, err := variableTemplateParser().Parse(converted); err != nil {
 			return TaskOptions{}, errors.New("invalid download_dir template")
 		}
-		dir := filepath.Clean(v)
-		if !filepath.IsAbs(dir) {
-			dir = filepath.Join(config.Cfg.RootDir, dir)
-			dir = filepath.Clean(dir)
-		}
-		opts.DownloadDir = dir
+		opts.DownloadDir = v
 	}
 	if req.MaxRetry > 0 {
 		opts.MaxRetry = req.MaxRetry
@@ -286,14 +281,15 @@ func resolveTaskOptions(req TaskOptions) (TaskOptions, error) {
 		opts.Cookie = v
 	}
 	if v := strings.TrimSpace(req.FilenameTemplate); v != "" {
-		if _, err := variableTemplateParser().Parse(v); err != nil {
+		converted := downloader.ConvertExternalTemplate(v)
+		if _, err := variableTemplateParser().Parse(converted); err != nil {
 			return TaskOptions{}, errors.New("invalid filename_template")
 		}
 		opts.FilenameTemplate = v
 	}
 
 	if opts.DownloadDir == "" {
-		opts.DownloadDir = "."
+		opts.DownloadDir = config.Cfg.RootDir
 	}
 	return opts, nil
 }
@@ -322,8 +318,8 @@ func summarizeOptions(opts TaskOptions) TaskOptionsSummary {
 
 func variableTemplateParser() *template.Template {
 	return template.New("filename").Funcs(template.FuncMap{
-		"now":             func() string { return "" },
-		"publish_time":    func() string { return "" },
+		"now":             func(layout ...string) string { return "" },
+		"publish_time":    func(layout ...string) string { return "" },
 		"title":           func() string { return "" },
 		"video_id":        func() string { return "" },
 		"author":          func() string { return "" },
