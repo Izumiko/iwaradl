@@ -22,5 +22,6 @@ func NewRouter() http.Handler {
 }
 
 func RunServer(port int) error {
+	StartWorker()
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), NewRouter())
 }

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"iwaradl/config"
 	"iwaradl/downloader"
 	"sync"
 	"time"
@@ -14,39 +15,50 @@ type Task struct {
 }
 
 var (
-	store = make(map[string]*Task)
-	mu    sync.RWMutex
+	store      = make(map[string]*Task)
+	mu         sync.RWMutex
+	workerOnce sync.Once
+	workerWake = make(chan struct{}, 1)
 )
 
+type DeleteResult int
+
+const (
+	DeleteOK DeleteResult = iota
+	DeleteNotFound
+	DeleteNotPending
+)
+
+func StartWorker() {
+	workerOnce.Do(func() {
+		go workerLoop()
+	})
+}
+
 func CreateTask(urls []string) []*Task {
-	mu.Lock()
-	defer mu.Unlock()
 	vids := downloader.ProcessUrlList(urls)
 
+	mu.Lock()
 	var list []*Task
 	for _, vid := range vids {
+		if store[vid] != nil {
+			continue
+		}
 		t := &Task{
 			VID:       vid,
 			Status:    "pending",
 			Progress:  0,
 			CreatedAt: time.Now(),
 		}
-		if store[t.VID] != nil {
-			continue
-		}
 		store[t.VID] = t
-		list = append(list, t)
+		list = append(list, cloneTask(t))
+	}
+	mu.Unlock()
+
+	if len(list) > 0 {
+		wakeWorker()
 	}
 
-	// 异步执行，不阻塞接口
-	//go func() {
-	//	t.Status = "running"
-	//	for i, u := range t.URLs {
-	//		_ = downloader.Download(u) // 你已有的函数
-	//		t.Progress = int(float64(i+1) / float64(len(t.URLs)) * 100)
-	//	}
-	//	t.Status = "completed"
-	//}()
 	return list
 }
 
@@ -54,7 +66,10 @@ func GetTask(vid string) (*Task, bool) {
 	mu.RLock()
 	defer mu.RUnlock()
 	t, ok := store[vid]
-	return t, ok
+	if !ok {
+		return nil, false
+	}
+	return cloneTask(t), true
 }
 
 func ListTasks() []*Task {
@@ -62,17 +77,98 @@ func ListTasks() []*Task {
 	defer mu.RUnlock()
 	list := make([]*Task, 0, len(store))
 	for _, t := range store {
-		list = append(list, t)
+		list = append(list, cloneTask(t))
 	}
 	return list
 }
 
-func DeleteTask(vid string) bool {
+func DeleteTask(vid string) DeleteResult {
 	mu.Lock()
 	defer mu.Unlock()
-	if _, ok := store[vid]; !ok {
-		return false
+	t, ok := store[vid]
+	if !ok {
+		return DeleteNotFound
+	}
+	if t.Status != "pending" {
+		return DeleteNotPending
 	}
 	delete(store, vid)
-	return true
+	return DeleteOK
+}
+
+func wakeWorker() {
+	select {
+	case workerWake <- struct{}{}:
+	default:
+	}
+}
+
+func workerLoop() {
+	for {
+		<-workerWake
+		for {
+			vids := pickPendingTasks()
+			if len(vids) == 0 {
+				break
+			}
+			downloadBatch(vids)
+		}
+	}
+}
+
+func pickPendingTasks() []string {
+	mu.Lock()
+	defer mu.Unlock()
+
+	vids := make([]string, 0)
+	for vid, t := range store {
+		if t.Status != "pending" {
+			continue
+		}
+		t.Status = "running"
+		t.Progress = 0
+		vids = append(vids, vid)
+	}
+	return vids
+}
+
+func downloadBatch(vids []string) {
+	downloader.VidList = append([]string(nil), vids...)
+
+	maxRetry := config.Cfg.MaxRetry
+	if maxRetry <= 0 {
+		maxRetry = 1
+	}
+
+	failed := len(downloader.VidList)
+	for i := 0; i < maxRetry && failed > 0; i++ {
+		failed = downloader.ConcurrentDownload()
+		if failed > 0 && i < maxRetry-1 {
+			time.Sleep(30 * time.Second)
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	for _, vid := range vids {
+		t, ok := store[vid]
+		if !ok || t.Status != "running" {
+			continue
+		}
+		if downloader.FindHistory(vid) {
+			t.Status = "completed"
+			t.Progress = 1
+			continue
+		}
+		t.Status = "failed"
+		t.Progress = 0
+	}
+}
+
+func cloneTask(t *Task) *Task {
+	if t == nil {
+		return nil
+	}
+	cp := *t
+	return &cp
 }

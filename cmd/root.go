@@ -27,7 +27,6 @@ var (
 	proxyUrl    string
 	threadNum   int
 	maxRetry    int
-	//vidList     []string
 )
 
 // rootCmd represents the base command
@@ -46,45 +45,7 @@ var rootCmd = &cobra.Command{
 			return cmd.Help()
 		}
 
-		util.DebugLog("Loading config from file: %s", configFile)
-		err := config.LoadConfig(&config.Cfg, configFile)
-		if err != nil {
-			util.DebugLog("Failed to load config: %v", err)
-			// return err
-		}
-		// util.DebugLog("Config loaded successfully")
-
-		util.DebugLog("Processing command line flags")
-		// 命令行参数优先级高于配置文件
-		if rootDir != "" {
-			util.DebugLog("Using root directory from flag: %s", rootDir)
-			config.Cfg.RootDir = rootDir
-		}
-		if useSubDir {
-			config.Cfg.UseSubDir = useSubDir
-		}
-		if email != "" {
-			config.Cfg.Email = email
-		}
-		if password != "" {
-			config.Cfg.Password = password
-		}
-		if auth != "" {
-			config.Cfg.Authorization = auth
-		}
-		if proxyUrl != "" {
-			config.Cfg.ProxyUrl = proxyUrl
-		}
-		if threadNum > 0 {
-			config.Cfg.ThreadNum = threadNum
-		}
-		if maxRetry > 0 {
-			config.Cfg.MaxRetry = maxRetry
-		}
-
-		if debug {
-			util.Debug = true
-		}
+		initRuntimeConfig()
 
 		if updateNfo {
 			if rootDir == "" {
@@ -102,7 +63,7 @@ var rootCmd = &cobra.Command{
 		}
 		if len(args) > 0 {
 			util.DebugLog("Processing %d URLs from command line arguments", len(args))
-			downloader.VidList = downloader.ProcessUrlList(args)
+			downloader.VidList = append(downloader.VidList, downloader.ProcessUrlList(args)...)
 		}
 		if listFile != "" {
 			_, err := os.Stat(listFile)
@@ -117,7 +78,7 @@ var rootCmd = &cobra.Command{
 			for i, v := range urls {
 				urls[i] = strings.TrimRight(v, "\r")
 			}
-			downloader.VidList = downloader.ProcessUrlList(urls)
+			downloader.VidList = append(downloader.VidList, downloader.ProcessUrlList(urls)...)
 		}
 		downloader.SaveVidList()
 
@@ -134,6 +95,45 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func initRuntimeConfig() {
+	util.DebugLog("Loading config from file: %s", configFile)
+	err := config.LoadConfig(&config.Cfg, configFile)
+	if err != nil {
+		util.DebugLog("Failed to load config: %v", err)
+	}
+
+	if debug {
+		util.Debug = true
+	}
+
+	util.DebugLog("Processing command line flags")
+	if rootDir != "" {
+		util.DebugLog("Using root directory from flag: %s", rootDir)
+		config.Cfg.RootDir = rootDir
+	}
+	if useSubDir {
+		config.Cfg.UseSubDir = useSubDir
+	}
+	if email != "" {
+		config.Cfg.Email = email
+	}
+	if password != "" {
+		config.Cfg.Password = password
+	}
+	if auth != "" {
+		config.Cfg.Authorization = auth
+	}
+	if proxyUrl != "" {
+		config.Cfg.ProxyUrl = proxyUrl
+	}
+	if threadNum > 0 {
+		config.Cfg.ThreadNum = threadNum
+	}
+	if maxRetry > 0 {
+		config.Cfg.MaxRetry = maxRetry
+	}
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

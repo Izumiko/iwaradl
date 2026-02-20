@@ -17,6 +17,7 @@ iwara.tv下载器支持功能：
 可用命令：
   completion  为指定shell生成自动补全脚本
   help        查看命令帮助
+  serve       启动守护进程模式
   version     打印版本号
 
 参数说明：
@@ -37,6 +38,29 @@ iwara.tv下载器支持功能：
       --update-delay        nfo文件更新间隔时间，单位秒（默认: 1）
 
 使用"iwaradl [命令] --help"查看具体命令帮助信息。
+```
+
+### 守护进程模式
+
+启动 daemon：
+
+```shell
+iwaradl serve --port 23456 --config config.yaml
+```
+
+API 接口：
+
+- `POST /api/tasks` 提交下载任务
+- `GET /api/tasks` 查看全部任务
+- `GET /api/tasks/{vid}` 查看单个任务
+- `DELETE /api/tasks/{vid}` 删除单个待处理任务（仅 `pending` 可删除）
+
+提交任务示例：
+
+```shell
+curl -X POST http://127.0.0.1:23456/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"urls":["https://www.iwara.tv/video/xxxx"]}'
 ```
 
 ### config.yaml

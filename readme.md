@@ -17,6 +17,7 @@ Usage:
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   help        Help about any command
+  serve       start iwara downloading daemon
   version     Print the version number
 
 Flags:
@@ -37,6 +38,29 @@ Flags:
       --update-delay        delay in seconds between updating each nfo file (default: 1)
 
 Use "iwaradl [command] --help" for more information about a command.
+```
+
+### Daemon mode
+
+Start daemon:
+
+```shell
+iwaradl serve --port 23456 --config config.yaml
+```
+
+API endpoints:
+
+- `POST /api/tasks` add download tasks
+- `GET /api/tasks` list all tasks
+- `GET /api/tasks/{vid}` get one task
+- `DELETE /api/tasks/{vid}` delete one pending task
+
+Create task example:
+
+```shell
+curl -X POST http://127.0.0.1:23456/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"urls":["https://www.iwara.tv/video/xxxx"]}'
 ```
 
 ### config.yaml

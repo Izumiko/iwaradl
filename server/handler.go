@@ -31,6 +31,10 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tl := CreateTask(req.URLs)
+	if len(tl) == 0 {
+		http.Error(w, "no new valid tasks", http.StatusUnprocessableEntity)
+		return
+	}
 	list := make([]TaskResp, len(tl))
 	for i, t := range tl {
 		list[i] = taskToResp(t)
@@ -60,11 +64,14 @@ func listTasks(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /api/tasks/{vid}
 func deleteTask(w http.ResponseWriter, r *http.Request) {
-	if !DeleteTask(chi.URLParam(r, "vid")) {
+	switch DeleteTask(chi.URLParam(r, "vid")) {
+	case DeleteOK:
+		w.WriteHeader(http.StatusNoContent)
+	case DeleteNotFound:
 		http.Error(w, "not found", http.StatusNotFound)
-		return
+	case DeleteNotPending:
+		http.Error(w, "only pending task can be deleted", http.StatusConflict)
 	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 /* ---------- 工具 ---------- */
