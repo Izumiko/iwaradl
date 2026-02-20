@@ -23,6 +23,7 @@ Available Commands:
 Flags:
   -u  --email string        email
   -p  --password string     password
+      --api-token string    token for daemon HTTP API authentication
       --auth-token string   authorization token
   -c, --config string       config file (default "config.yaml")
       --debug               enable debug logging
@@ -45,8 +46,11 @@ Use "iwaradl [command] --help" for more information about a command.
 Start daemon:
 
 ```shell
-iwaradl serve --port 23456 --config config.yaml
+iwaradl serve --bind 127.0.0.1 --port 23456 --config config.yaml
 ```
+
+`--api-token` (or env `IWARADL_API_TOKEN`) is required in daemon mode.
+`--bind` defaults to `127.0.0.1`.
 
 API endpoints:
 
@@ -59,6 +63,7 @@ Create task example:
 
 ```shell
 curl -X POST http://127.0.0.1:23456/api/tasks \
+  -H "Authorization: Bearer <YOUR_API_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"urls":["https://www.iwara.tv/video/xxxx"]}'
 ```
@@ -71,6 +76,7 @@ useSubDir: false # use user name as sub dir
 email:  "" # email for login
 password: "" #  password for login
 authorization: "" # token for login, without leading "Bearer "
+apiToken: "" # token used by daemon HTTP API auth
 proxyUrl: "http://127.0.0.1:11081" # proxy url
 threadNum: 4 # concurrent download thread num
 maxRetry: 3 # max retry times

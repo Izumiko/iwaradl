@@ -24,6 +24,7 @@ var (
 	email       string
 	password    string
 	auth        string
+	apiToken    string
 	proxyUrl    string
 	threadNum   int
 	maxRetry    int
@@ -116,6 +117,9 @@ func initRuntimeConfig() {
 	if useSubDir {
 		config.Cfg.UseSubDir = useSubDir
 	}
+	if config.Cfg.ApiToken == "" {
+		config.Cfg.ApiToken = os.Getenv("IWARADL_API_TOKEN")
+	}
 	if email != "" {
 		config.Cfg.Email = email
 	}
@@ -124,6 +128,9 @@ func initRuntimeConfig() {
 	}
 	if auth != "" {
 		config.Cfg.Authorization = auth
+	}
+	if apiToken != "" {
+		config.Cfg.ApiToken = apiToken
 	}
 	if proxyUrl != "" {
 		config.Cfg.ProxyUrl = proxyUrl
@@ -156,6 +163,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&email, "email", "u", "", "username for authentication")
 	rootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "password for authentication")
 	rootCmd.PersistentFlags().StringVar(&auth, "auth-token", "", "authorization token")
+	rootCmd.PersistentFlags().StringVar(&apiToken, "api-token", "", "token for daemon HTTP API authentication")
 	rootCmd.PersistentFlags().StringVar(&proxyUrl, "proxy-url", "", "proxy url")
 	rootCmd.PersistentFlags().IntVar(&threadNum, "thread-num", -1, "concurrent download thread number")
 	rootCmd.PersistentFlags().IntVar(&maxRetry, "max-retry", -1, "max retry times")

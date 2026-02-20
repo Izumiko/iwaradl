@@ -3,6 +3,7 @@ useSubDir: false
 email:  ""
 password: ""
 authorization: ""
+apiToken: ""
 proxyUrl: "http://127.0.0.1:11081"
 threadNum: 3
 maxRetry: 3

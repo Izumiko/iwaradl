@@ -20,6 +20,7 @@ func init() {
 		Password:      "",    // 密码，用于刷新API授权令牌
 		Authorization: "",    // API授权令牌
 		ProxyUrl:      "",    // 代理服务器地址
+		ApiToken:      "",    // daemon HTTP API token
 		ThreadNum:     3,     // 下载线程数
 		MaxRetry:      3,     // 最大重试次数
 	}
@@ -35,6 +36,7 @@ type Config struct {
 	Password      string `yaml:"password"`
 	Authorization string `yaml:"authorization"`
 	ProxyUrl      string `yaml:"proxyUrl"`
+	ApiToken      string `yaml:"apiToken"`
 	ThreadNum     int    `yaml:"threadNum"`
 	MaxRetry      int    `yaml:"maxRetry"`
 }

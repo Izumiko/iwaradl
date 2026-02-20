@@ -23,6 +23,7 @@ iwara.tv下载器支持功能：
 参数说明：
   -u  --email string        登录邮箱
   -p  --password string     登录密码
+      --api-token string    daemon HTTP API 鉴权 token
       --auth-token string   授权令牌
   -c, --config string       配置文件路径（默认为"config.yaml"）
       --debug               启用调试日志
@@ -45,8 +46,11 @@ iwara.tv下载器支持功能：
 启动 daemon：
 
 ```shell
-iwaradl serve --port 23456 --config config.yaml
+iwaradl serve --bind 127.0.0.1 --port 23456 --config config.yaml
 ```
+
+daemon 模式必须提供 `--api-token`，或设置环境变量 `IWARADL_API_TOKEN`。
+`--bind` 默认值为 `127.0.0.1`。
 
 API 接口：
 
@@ -59,6 +63,7 @@ API 接口：
 
 ```shell
 curl -X POST http://127.0.0.1:23456/api/tasks \
+  -H "Authorization: Bearer <YOUR_API_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"urls":["https://www.iwara.tv/video/xxxx"]}'
 ```
@@ -71,6 +76,7 @@ useSubDir: false # 是否根据作者创建子目录
 email:  "" # 登录邮箱
 password: "" # 登录密码
 authorization: "" # 登录时用到的token，不含开头的"Bearer "
+apiToken: "" # daemon HTTP API 鉴权 token
 proxyUrl: "http://127.0.0.1:11081" # 代理地址
 threadNum: 4 # 同时进行的任务数
 maxRetry: 3 # 最大尝试下载次数

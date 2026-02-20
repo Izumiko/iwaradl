@@ -1,8 +1,9 @@
 package server
 
 import (
-	"fmt"
+	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -13,6 +14,7 @@ func NewRouter() http.Handler {
 	r.Use(middleware.Logger, middleware.Recoverer)
 
 	r.Route("/api", func(r chi.Router) {
+		r.Use(authMiddleware)
 		r.Post("/tasks", createTask)
 		r.Get("/tasks", listTasks)
 		r.Get("/tasks/{vid}", getTask)
@@ -21,7 +23,8 @@ func NewRouter() http.Handler {
 	return r
 }
 
-func RunServer(port int) error {
+func RunServer(bindAddr string, port int) error {
 	StartWorker()
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), NewRouter())
+	addr := net.JoinHostPort(bindAddr, strconv.Itoa(port))
+	return http.ListenAndServe(addr, NewRouter())
 }
