@@ -89,7 +89,7 @@ func init() {
 // GetVideoInfo Get the video info json from the API server
 func GetVideoInfo(id string) (info VideoInfo, err error) {
 	util.DebugLog("Starting to get video info, ID: %s", id)
-	u := "https://api.iwara.tv/video/" + id
+	u := "https://apiq.iwara.tv/video/" + id
 	body, err := Fetch(u, "")
 	if err != nil {
 		util.DebugLog("Failed to get video info: %v", err)
@@ -186,7 +186,7 @@ func GetVideoUrl(vi VideoInfo) string {
 		return ""
 	}
 	expires := parsed.Query().Get("expires")
-	xv := vi.File.Id + "_" + expires + "_5nFp9kmbNnHdAFhaqMvt"
+	xv := vi.File.Id + "_" + expires + "_mSvL05GfEmeEmsEYfGCnVpEjYgTJraJN"
 	xversion := SHA1(xv)
 	body, err := Fetch(u, xversion)
 	if err != nil {
@@ -211,7 +211,7 @@ func GetVideoUrl(vi VideoInfo) string {
 
 // GetUserProfile Get user profile by username
 func GetUserProfile(username string) (profile UserProfile, err error) {
-	u := "https://api.iwara.tv/profile/" + username
+	u := "https://apiq.iwara.tv/profile/" + username
 	body, err := Fetch(u, "")
 	if err != nil {
 		util.DebugLog("Failed to get user profile: %v", err)
@@ -223,7 +223,7 @@ func GetUserProfile(username string) (profile UserProfile, err error) {
 
 // GetMaxPage Get the max page of the user's video list
 func GetMaxPage(uid string) int {
-	u := "https://api.iwara.tv/videos?limit=8&user=" + uid
+	u := "https://apiq.iwara.tv/videos?limit=8&user=" + uid
 	body, err := Fetch(u, "")
 	if err != nil {
 		return -1
@@ -255,7 +255,7 @@ func GetVideoList(username string) []VideoInfo {
 	util.DebugLog("User ID: %s, max pages: %d", uid, maxPage)
 	var list []VideoInfo
 	for i := 0; i < maxPage; i++ {
-		u := "https://api.iwara.tv/videos?page=" + strconv.Itoa(i) + "&sort=date&user=" + uid
+		u := "https://apiq.iwara.tv/videos?page=" + strconv.Itoa(i) + "&sort=date&user=" + uid
 		body, err := Fetch(u, "")
 		if err != nil {
 			util.DebugLog("Failed to get page %d: %v", i+1, err)
@@ -307,7 +307,7 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 
 // GetAccessToken Get access token using authorization token
 func GetAccessToken(auth string) (string, error) {
-	u := "https://api.iwara.tv/user/token"
+	u := "https://apiq.iwara.tv/user/token"
 
 	req, err := http.NewRequest("POST", u, nil)
 	if err != nil {
@@ -353,7 +353,7 @@ func GetAccessToken(auth string) (string, error) {
 
 // RefreshAuthToken Refresh Authorization Token with username and password
 func RefreshAuthToken() (string, error) {
-	u := "https://api.iwara.tv/user/login"
+	u := "https://apiq.iwara.tv/user/login"
 
 	body := struct {
 		Email    string `json:"email"`
