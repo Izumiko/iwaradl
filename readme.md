@@ -60,6 +60,8 @@ API endpoints:
 - `GET /api/tasks/{vid}` get one task
 - `DELETE /api/tasks/{vid}` delete one pending task
 
+Details see [API doc](http-api.md).
+
 Create task example:
 
 ```shell

@@ -60,6 +60,8 @@ API 接口：
 - `GET /api/tasks/{vid}` 查看单个任务
 - `DELETE /api/tasks/{vid}` 删除单个待处理任务（仅 `pending` 可删除）
 
+详见 [API 文档](http-api.zh_CN.md)。
+
 提交任务示例：
 
 ```shell
