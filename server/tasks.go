@@ -1,17 +1,42 @@
 package server
 
 import (
+	"errors"
 	"iwaradl/config"
 	"iwaradl/downloader"
+	"net/url"
+	"path/filepath"
+	"strings"
 	"sync"
+	"text/template"
 	"time"
 )
 
+const fallbackTemplate = "{{title}}-{{video_id}}"
+
+type TaskOptions struct {
+	ProxyURL         string `json:"proxy_url,omitempty"`
+	DownloadDir      string `json:"download_dir,omitempty"`
+	Cookie           string `json:"cookie,omitempty"`
+	MaxRetry         int    `json:"max_retry,omitempty"`
+	FilenameTemplate string `json:"filename_template,omitempty"`
+}
+
+type TaskOptionsSummary struct {
+	ProxyURL         string `json:"proxy_url,omitempty"`
+	DownloadDir      string `json:"download_dir"`
+	CookieSet        bool   `json:"cookie_set"`
+	MaxRetry         int    `json:"max_retry"`
+	FilenameTemplate string `json:"filename_template"`
+}
+
 type Task struct {
-	VID       string
-	Status    string // pending / running / completed / failed
-	Progress  float32
-	CreatedAt time.Time
+	VID            string
+	Status         string // pending / running / completed / failed
+	Progress       float32
+	CreatedAt      time.Time
+	Options        TaskOptions
+	OptionsSummary TaskOptionsSummary
 }
 
 var (
@@ -35,7 +60,12 @@ func StartWorker() {
 	})
 }
 
-func CreateTask(urls []string) []*Task {
+func CreateTask(urls []string, reqOpts TaskOptions) ([]*Task, error) {
+	opts, err := resolveTaskOptions(reqOpts)
+	if err != nil {
+		return nil, err
+	}
+
 	vids := downloader.ProcessUrlList(urls)
 
 	mu.Lock()
@@ -45,10 +75,12 @@ func CreateTask(urls []string) []*Task {
 			continue
 		}
 		t := &Task{
-			VID:       vid,
-			Status:    "pending",
-			Progress:  0,
-			CreatedAt: time.Now(),
+			VID:            vid,
+			Status:         "pending",
+			Progress:       0,
+			CreatedAt:      time.Now(),
+			Options:        opts,
+			OptionsSummary: summarizeOptions(opts),
 		}
 		store[t.VID] = t
 		list = append(list, cloneTask(t))
@@ -59,7 +91,7 @@ func CreateTask(urls []string) []*Task {
 		wakeWorker()
 	}
 
-	return list
+	return list, nil
 }
 
 func GetTask(vid string) (*Task, bool) {
@@ -107,64 +139,76 @@ func workerLoop() {
 	for {
 		<-workerWake
 		for {
-			vids := pickPendingTasks()
-			if len(vids) == 0 {
+			task := pickPendingTask()
+			if task == nil {
 				break
 			}
-			downloadBatch(vids)
+			downloadTask(task)
 		}
 	}
 }
 
-func pickPendingTasks() []string {
+func pickPendingTask() *Task {
 	mu.Lock()
 	defer mu.Unlock()
-
-	vids := make([]string, 0)
-	for vid, t := range store {
+	for _, t := range store {
 		if t.Status != "pending" {
 			continue
 		}
 		t.Status = "running"
 		t.Progress = 0
-		vids = append(vids, vid)
+		return cloneTask(t)
 	}
-	return vids
+	return nil
 }
 
-func downloadBatch(vids []string) {
-	downloader.VidList = append([]string(nil), vids...)
+func downloadTask(task *Task) {
+	if task == nil {
+		return
+	}
+
+	downloader.VidList = []string{task.VID}
 	downloader.SetProgressHook(updateTaskProgress)
 	defer downloader.SetProgressHook(nil)
 
-	maxRetry := config.Cfg.MaxRetry
-	if maxRetry <= 0 {
-		maxRetry = 1
+	retry := task.Options.MaxRetry
+	if retry <= 0 {
+		retry = 1
 	}
 
 	failed := len(downloader.VidList)
-	for i := 0; i < maxRetry && failed > 0; i++ {
-		failed = downloader.ConcurrentDownload()
-		if failed > 0 && i < maxRetry-1 {
+	dlOpts := downloader.DownloadOptions{
+		RootDir:          task.Options.DownloadDir,
+		UseSubDir:        false,
+		UseSubDirSet:     true,
+		ProxyURL:         task.Options.ProxyURL,
+		Cookie:           task.Options.Cookie,
+		FilenameTemplate: task.Options.FilenameTemplate,
+	}
+	for i := 0; i < retry && failed > 0; i++ {
+		failed = downloader.ConcurrentDownloadWithOptions(dlOpts)
+		if failed > 0 && i < retry-1 {
 			time.Sleep(30 * time.Second)
 		}
 	}
 
 	mu.Lock()
 	defer mu.Unlock()
-	for _, vid := range vids {
-		t, ok := store[vid]
-		if !ok || t.Status != "running" {
-			continue
-		}
-		if downloader.FindHistory(vid) {
+	t, ok := store[task.VID]
+	if !ok {
+		return
+	}
+	if t.Status == "running" {
+		if downloader.FindHistory(task.VID) {
 			t.Status = "completed"
 			t.Progress = 1
-			continue
+		} else {
+			t.Status = "failed"
+			t.Progress = 0
 		}
-		t.Status = "failed"
-		t.Progress = 0
 	}
+	t.Options.Cookie = ""
+	t.OptionsSummary.CookieSet = false
 }
 
 func updateTaskProgress(report downloader.ProgressReport) {
@@ -202,6 +246,90 @@ func updateTaskProgress(report downloader.ProgressReport) {
 		}
 		t.Progress = p
 	}
+}
+
+func resolveTaskOptions(req TaskOptions) (TaskOptions, error) {
+	opts := TaskOptions{
+		ProxyURL:         strings.TrimSpace(config.Cfg.ProxyUrl),
+		DownloadDir:      strings.TrimSpace(config.Cfg.RootDir),
+		MaxRetry:         config.Cfg.MaxRetry,
+		FilenameTemplate: strings.TrimSpace(config.Cfg.FilenameTemplate),
+	}
+	if opts.MaxRetry <= 0 {
+		opts.MaxRetry = 1
+	}
+	if opts.FilenameTemplate == "" {
+		opts.FilenameTemplate = fallbackTemplate
+	}
+
+	if v := strings.TrimSpace(req.ProxyURL); v != "" {
+		if err := validateProxyURL(v); err != nil {
+			return TaskOptions{}, err
+		}
+		opts.ProxyURL = v
+	}
+	if v := strings.TrimSpace(req.DownloadDir); v != "" {
+		if _, err := variableTemplateParser().Parse(v); err != nil {
+			return TaskOptions{}, errors.New("invalid download_dir template")
+		}
+		dir := filepath.Clean(v)
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(config.Cfg.RootDir, dir)
+			dir = filepath.Clean(dir)
+		}
+		opts.DownloadDir = dir
+	}
+	if req.MaxRetry > 0 {
+		opts.MaxRetry = req.MaxRetry
+	}
+	if v := strings.TrimSpace(req.Cookie); v != "" {
+		opts.Cookie = v
+	}
+	if v := strings.TrimSpace(req.FilenameTemplate); v != "" {
+		if _, err := variableTemplateParser().Parse(v); err != nil {
+			return TaskOptions{}, errors.New("invalid filename_template")
+		}
+		opts.FilenameTemplate = v
+	}
+
+	if opts.DownloadDir == "" {
+		opts.DownloadDir = "."
+	}
+	return opts, nil
+}
+
+func validateProxyURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return errors.New("invalid proxy_url")
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "http" && scheme != "https" && scheme != "socks5" {
+		return errors.New("proxy_url scheme must be http, https or socks5")
+	}
+	return nil
+}
+
+func summarizeOptions(opts TaskOptions) TaskOptionsSummary {
+	return TaskOptionsSummary{
+		ProxyURL:         opts.ProxyURL,
+		DownloadDir:      opts.DownloadDir,
+		CookieSet:        opts.Cookie != "",
+		MaxRetry:         opts.MaxRetry,
+		FilenameTemplate: opts.FilenameTemplate,
+	}
+}
+
+func variableTemplateParser() *template.Template {
+	return template.New("filename").Funcs(template.FuncMap{
+		"now":             func() string { return "" },
+		"publish_time":    func() string { return "" },
+		"title":           func() string { return "" },
+		"video_id":        func() string { return "" },
+		"author":          func() string { return "" },
+		"author_nickname": func() string { return "" },
+		"quality":         func() string { return "" },
+	})
 }
 
 func cloneTask(t *Task) *Task {

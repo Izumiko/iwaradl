@@ -21,22 +21,23 @@ Available Commands:
   version     Print the version number
 
 Flags:
-  -u  --email string        email
-  -p  --password string     password
-      --api-token string    token for daemon HTTP API authentication
-      --auth-token string   authorization token
-  -c, --config string       config file (default "config.yaml")
-      --debug               enable debug logging
-  -h, --help                help for iwaradl
-  -l, --list-file string    URL list file
-      --max-retry int       max retry times (default -1)
-      --proxy-url string    proxy url
-  -r, --resume              resume unfinished job
-      --root-dir string     root directory for videos
-      --thread-num int      concurrent download thread number (default -1)
-      --use-sub-dir         use user name as sub directory
-      --update-nfo          update nfo files in root directory (--root-dir flag required)
-      --update-delay        delay in seconds between updating each nfo file (default: 1)
+  -u  --email string              email
+  -p  --password string           password
+      --api-token string          token for daemon HTTP API authentication
+      --auth-token string         authorization token
+  -c, --config string             config file (default "config.yaml")
+      --debug                     enable debug logging
+  -h, --help                      help for iwaradl
+  -l, --list-file string          URL list file
+      --filename-template string  output filename template
+      --max-retry int             max retry times (default -1)
+      --proxy-url string          proxy url
+  -r, --resume                    resume unfinished job
+      --root-dir string           root directory for videos
+      --thread-num int            concurrent download thread number (default -1)
+      --use-sub-dir               use user name as sub directory
+      --update-nfo                update nfo files in root directory (--root-dir flag required)
+      --update-delay              delay in seconds between updating each nfo file (default: 1)
 
 Use "iwaradl [command] --help" for more information about a command.
 ```
@@ -65,8 +66,29 @@ Create task example:
 curl -X POST http://127.0.0.1:23456/api/tasks \
   -H "Authorization: Bearer <YOUR_API_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"urls":["https://www.iwara.tv/video/xxxx"]}'
+  -d '{
+    "urls":["https://www.iwara.tv/video/xxxx"],
+    "options":{
+      "download_dir":"daily",
+      "proxy_url":"http://127.0.0.1:7890",
+      "max_retry":2,
+      "filename_template":"{{title}}-{{video_id}}-{{quality}}"
+    }
+  }'
 ```
+
+`options.download_dir` supports both relative and absolute paths. Relative paths are joined with `rootDir`.
+`options.download_dir` also supports the same template variables, e.g. `iwara/{{author_nickname}}`.
+
+Filename template variables:
+
+- `{{now}}` (YYYY-MM-DD)
+- `{{publish_time}}` (YYYY-MM-DD)
+- `{{title}}`
+- `{{video_id}}`
+- `{{author}}`
+- `{{author_nickname}}`
+- `{{quality}}`
 
 ### config.yaml
 
@@ -78,6 +100,7 @@ password: "" #  password for login
 authorization: "" # token for login, without leading "Bearer "
 apiToken: "" # token used by daemon HTTP API auth
 proxyUrl: "http://127.0.0.1:11081" # proxy url
+filenameTemplate: "{{title}}-{{video_id}}" # output filename template
 threadNum: 4 # concurrent download thread num
 maxRetry: 3 # max retry times
 ```

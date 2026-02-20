@@ -10,12 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/flytam/filenamify"
 )
 
-// WriteNfo get video detail info and write to Jellyfin nfo file
-func WriteNfo(vi api.VideoInfo) (title string, path string, err error) {
+// WriteNfoToPath get video detail info and write nfo to path
+func WriteNfoToPath(vi api.VideoInfo, path string) (title string, outPath string, err error) {
 	util.DebugLog("Getting detailed info for video: %s", vi.Id)
 	detailInfo, err := api.GetDetailInfo(vi)
 	if err != nil {
@@ -25,11 +23,8 @@ func WriteNfo(vi api.VideoInfo) (title string, path string, err error) {
 	// add <br> to description
 	detailInfo.Description = strings.ReplaceAll(detailInfo.Description, "\n", "<br/>\n")
 
-	path = PrepareFolder(detailInfo.Author)
-	titleSafe, _ := filenamify.Filenamify(detailInfo.VideoName, filenamify.Options{Replacement: "_", MaxLength: 64})
-	filename := filepath.Join(path, titleSafe+"-"+vi.Id+".nfo")
-	util.DebugLog("Writing NFO file: %s", filename)
-	f, err := os.Create(filename)
+	util.DebugLog("Writing NFO file: %s", path)
+	f, err := os.Create(path)
 	if err != nil {
 		println(err.Error())
 		return "", "", err

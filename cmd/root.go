@@ -13,21 +13,22 @@ import (
 )
 
 var (
-	configFile  string
-	listFile    string
-	resumeJob   bool
-	updateNfo   bool
-	updateDelay int
-	debug       bool
-	rootDir     string
-	useSubDir   bool
-	email       string
-	password    string
-	auth        string
-	apiToken    string
-	proxyUrl    string
-	threadNum   int
-	maxRetry    int
+	configFile       string
+	listFile         string
+	resumeJob        bool
+	updateNfo        bool
+	updateDelay      int
+	debug            bool
+	rootDir          string
+	useSubDir        bool
+	email            string
+	password         string
+	auth             string
+	apiToken         string
+	proxyUrl         string
+	filenameTemplate string
+	threadNum        int
+	maxRetry         int
 )
 
 // rootCmd represents the base command
@@ -135,6 +136,9 @@ func initRuntimeConfig() {
 	if proxyUrl != "" {
 		config.Cfg.ProxyUrl = proxyUrl
 	}
+	if filenameTemplate != "" {
+		config.Cfg.FilenameTemplate = filenameTemplate
+	}
 	if threadNum > 0 {
 		config.Cfg.ThreadNum = threadNum
 	}
@@ -165,6 +169,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&auth, "auth-token", "", "authorization token")
 	rootCmd.PersistentFlags().StringVar(&apiToken, "api-token", "", "token for daemon HTTP API authentication")
 	rootCmd.PersistentFlags().StringVar(&proxyUrl, "proxy-url", "", "proxy url")
+	rootCmd.PersistentFlags().StringVar(&filenameTemplate, "filename-template", "", "output filename template")
 	rootCmd.PersistentFlags().IntVar(&threadNum, "thread-num", -1, "concurrent download thread number")
 	rootCmd.PersistentFlags().IntVar(&maxRetry, "max-retry", -1, "max retry times")
 }

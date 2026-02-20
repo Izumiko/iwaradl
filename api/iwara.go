@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	http "github.com/bogdanfinn/fhttp"
@@ -20,9 +21,11 @@ import (
 )
 
 var (
-	Token       string
-	Client      tlsClient.HttpClient
-	commHeaders = http.Header{
+	Token         string
+	Client        tlsClient.HttpClient
+	runtimeCookie string
+	runtimeMu     sync.Mutex
+	commHeaders   = http.Header{
 		"accept":                    {"application/json"},
 		"accept-encoding":           {"gzip, deflate, br, zstd"},
 		"accept-language":           {"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6"},
@@ -60,7 +63,7 @@ var (
 	}
 )
 
-func initClient() error {
+func initClient(proxyURL string) error {
 	var err error
 	options := []tlsClient.HttpClientOption{
 		tlsClient.WithTimeoutSeconds(60),
@@ -69,9 +72,9 @@ func initClient() error {
 		tlsClient.WithCookieJar(tlsClient.NewCookieJar()),
 		// tls_client.WithInsecureSkipVerify(),
 	}
-	if config.Cfg.ProxyUrl != "" && strings.HasPrefix(config.Cfg.ProxyUrl, "http") {
-		options = append(options, tlsClient.WithProxyUrl(config.Cfg.ProxyUrl))
-		util.DebugLog("Using proxy: %s", config.Cfg.ProxyUrl)
+	if proxyURL != "" && (strings.HasPrefix(proxyURL, "http") || strings.HasPrefix(proxyURL, "socks5")) {
+		options = append(options, tlsClient.WithProxyUrl(proxyURL))
+		util.DebugLog("Using proxy: %s", proxyURL)
 	}
 	Client, err = tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), options...)
 	if err != nil {
@@ -81,9 +84,29 @@ func initClient() error {
 }
 
 func init() {
-	if err := initClient(); err != nil {
+	if err := initClient(config.Cfg.ProxyUrl); err != nil {
 		panic(err)
 	}
+}
+
+func ExecuteWithRuntimeOptions(proxyURL string, cookie string, fn func() int) int {
+	runtimeMu.Lock()
+	defer runtimeMu.Unlock()
+
+	prevCookie := runtimeCookie
+	runtimeCookie = cookie
+
+	if err := initClient(proxyURL); err != nil {
+		runtimeCookie = prevCookie
+		_ = initClient(config.Cfg.ProxyUrl)
+		return fn()
+	}
+
+	result := fn()
+
+	runtimeCookie = prevCookie
+	_ = initClient(config.Cfg.ProxyUrl)
+	return result
 }
 
 // GetVideoInfo Get the video info json from the API server
@@ -139,6 +162,9 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 		req.Header.Set("Authorization", "Bearer "+Token)
 		util.DebugLog("Setting Authorization header")
 	}
+	if runtimeCookie != "" {
+		req.Header.Set("Cookie", runtimeCookie)
+	}
 
 	if xversion != "" {
 		req.Header.Set("X-Version", xversion)
@@ -177,13 +203,13 @@ func SHA1(s string) string {
 }
 
 // GetVideoUrl Get the mp4 source url of the video info
-func GetVideoUrl(vi VideoInfo) string {
+func GetVideoUrl(vi VideoInfo) (string, string) {
 	util.DebugLog("Starting to get video download URL, ID: %s", vi.Id)
 	u := vi.FileUrl
 	parsed, err := url.Parse(u)
 	if err != nil {
 		util.DebugLog("Failed to parse file URL: %v", err)
-		return ""
+		return "", ""
 	}
 	expires := parsed.Query().Get("expires")
 	xv := vi.File.Id + "_" + expires + "_mSvL05GfEmeEmsEYfGCnVpEjYgTJraJN"
@@ -191,22 +217,26 @@ func GetVideoUrl(vi VideoInfo) string {
 	body, err := Fetch(u, xversion)
 	if err != nil {
 		util.DebugLog("Failed to get video URL: %v", err)
-		return ""
+		return "", ""
 	}
 	var rList []ResolutionInfo
 	err = json.Unmarshal(body, &rList)
 	if err != nil {
 		util.DebugLog("Failed to parse video URL: %v", err)
-		return ""
+		return "", ""
 	}
 	for _, v := range rList {
 		if v.Name == "Source" {
 			util.DebugLog("Successfully got video download URL")
-			return `https:` + v.Src.Download
+			return `https:` + v.Src.Download, v.Name
 		}
 	}
+	if len(rList) > 0 {
+		v := rList[0]
+		return `https:` + v.Src.Download, v.Name
+	}
 	util.DebugLog("Source video URL not found")
-	return ""
+	return "", ""
 }
 
 // GetUserProfile Get user profile by username

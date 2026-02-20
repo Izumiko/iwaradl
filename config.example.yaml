@@ -5,5 +5,6 @@ password: ""
 authorization: ""
 apiToken: ""
 proxyUrl: "http://127.0.0.1:11081"
+filenameTemplate: "{{title}}-{{video_id}}"
 threadNum: 3
 maxRetry: 3

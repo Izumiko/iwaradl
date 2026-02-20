@@ -9,14 +9,16 @@ import (
 )
 
 type CreateReq struct {
-	URLs []string `json:"urls"`
+	URLs    []string    `json:"urls"`
+	Options TaskOptions `json:"options,omitempty"`
 }
 
 type TaskResp struct {
-	VID       string    `json:"vid"`
-	Status    string    `json:"status"`
-	Progress  float32   `json:"progress"`
-	CreatedAt time.Time `json:"created_at"`
+	VID       string             `json:"vid"`
+	Status    string             `json:"status"`
+	Progress  float32            `json:"progress"`
+	CreatedAt time.Time          `json:"created_at"`
+	Options   TaskOptionsSummary `json:"options"`
 }
 
 // POST /api/tasks
@@ -30,7 +32,11 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "urls empty", http.StatusUnprocessableEntity)
 		return
 	}
-	tl := CreateTask(req.URLs)
+	tl, err := CreateTask(req.URLs, req.Options)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
 	if len(tl) == 0 {
 		http.Error(w, "no new valid tasks", http.StatusUnprocessableEntity)
 		return
@@ -87,5 +93,6 @@ func taskToResp(t *Task) TaskResp {
 		Status:    t.Status,
 		Progress:  t.Progress,
 		CreatedAt: t.CreatedAt,
+		Options:   t.OptionsSummary,
 	}
 }
