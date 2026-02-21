@@ -79,7 +79,7 @@ func ProcessUrlList(urls []string) (vids []string) {
 			util.DebugLog("Added video ID to list: %s", vid)
 		} else if user != "" {
 			util.DebugLog("Fetching video list for user: %s", user)
-			videos := api.GetVideoList(user)
+			videos := api.GetVideoListByUser(user)
 			for _, vi := range videos {
 				vids = append(vids, vi.Id)
 			}

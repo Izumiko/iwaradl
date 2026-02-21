@@ -16,6 +16,7 @@ iwara.tv下载器支持功能：
 
 可用命令：
   completion  为指定shell生成自动补全脚本
+  genlist     生成过滤后的视频URL列表
   help        查看命令帮助
   serve       启动守护进程模式
   version     打印版本号
@@ -41,6 +42,29 @@ iwara.tv下载器支持功能：
 
 使用"iwaradl [命令] --help"查看具体命令帮助信息。
 ```
+
+### 生成视频列表（`genlist`）
+
+`genlist` 会从 Iwara 拉取视频列表分页，按日期/点赞/播放/时长进行过滤，并将最终视频 URL 写入文本文件。
+
+示例：
+
+```shell
+iwaradl genlist --sort date --page-limit 3 --date-limit 14 --output videolist.txt
+iwaradl genlist --rating all --filter-like0 200 --filter-like-inc 20 --filter-duration 120
+```
+
+主要参数：
+
+- `--sort`：`date`、`trending`、`popularity`、`views`、`likes`
+- `--page-limit`：抓取页数，必须 `> 0`
+- `--date-limit`：仅保留最近 N 天视频，必须 `> 0`
+- `--rating`：`all`、`general`、`ecchi`
+- `--filter-like0`：基础最小点赞数，必须 `>= 0`
+- `--filter-like-inc`：每增加 1 天额外要求的点赞数，必须 `>= 0`
+- `--filter-views`：最小播放数，必须 `>= 0`
+- `--filter-duration`：最小时长（秒），必须 `> 0`
+- `--output`：输出文件路径，不能为空
 
 ### 守护进程模式
 
