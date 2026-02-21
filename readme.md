@@ -16,6 +16,7 @@ Usage:
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
+  genlist     Generate a filtered Iwara video URL list
   help        Help about any command
   serve       start iwara downloading daemon
   version     Print the version number
@@ -41,6 +42,29 @@ Flags:
 
 Use "iwaradl [command] --help" for more information about a command.
 ```
+
+### Generate video list (`genlist`)
+
+`genlist` fetches video list pages from Iwara, filters videos by date/likes/views/duration, then writes final video URLs to a text file.
+
+Example:
+
+```shell
+iwaradl genlist --sort date --page-limit 3 --date-limit 14 --output videolist.txt
+iwaradl genlist --rating all --filter-like0 200 --filter-like-inc 20 --filter-duration 120
+```
+
+Main flags:
+
+- `--sort`: `date`, `trending`, `popularity`, `views`, `likes`
+- `--page-limit`: number of pages to fetch, must be `> 0`
+- `--date-limit`: only keep videos from last N days, must be `> 0`
+- `--rating`: `all`, `general`, `ecchi`
+- `--filter-like0`: base minimum likes, must be `>= 0`
+- `--filter-like-inc`: extra required likes per day, must be `>= 0`
+- `--filter-views`: minimum views, must be `>= 0`
+- `--filter-duration`: minimum duration in seconds, must be `> 0`
+- `--output`: output file path, cannot be empty
 
 ### Daemon mode
 
