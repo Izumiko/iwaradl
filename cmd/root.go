@@ -41,7 +41,8 @@ var rootCmd = &cobra.Command{
 - Resume unfinished downloads
 - Custom download directory
 - Proxy support`,
-	Args: cobra.ArbitraryArgs,
+	Args:         cobra.ArbitraryArgs,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !resumeJob && len(args) == 0 && listFile == "" && !updateNfo {
 			return cmd.Help()
