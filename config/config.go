@@ -14,14 +14,16 @@ var configFile = "config.yaml"
 func init() {
 	// 设置默认值
 	Cfg = Config{
-		RootDir:       ".",   // 文件下载根目录
-		UseSubDir:     false, // 是否使用子目录(按作者分类)
-		Email:         "",    // 用户名
-		Password:      "",    // 密码，用于刷新API授权令牌
-		Authorization: "",    // API授权令牌
-		ProxyUrl:      "",    // 代理服务器地址
-		ThreadNum:     3,     // 下载线程数
-		MaxRetry:      3,     // 最大重试次数
+		RootDir:          ".",                      // 文件下载根目录
+		UseSubDir:        false,                    // 是否使用子目录(按作者分类)
+		Email:            "",                       // 用户名
+		Password:         "",                       // 密码，用于刷新API授权令牌
+		Authorization:    "",                       // API授权令牌
+		ProxyUrl:         "",                       // 代理服务器地址
+		ApiToken:         "",                       // daemon HTTP API token
+		FilenameTemplate: "{{title}}-{{video_id}}", // output filename template
+		ThreadNum:        3,                        // 下载线程数
+		MaxRetry:         3,                        // 最大重试次数
 	}
 
 	// 尝试加载配置文件，如果文件不存在则使用默认值
@@ -29,14 +31,16 @@ func init() {
 }
 
 type Config struct {
-	RootDir       string `yaml:"rootDir"`
-	UseSubDir     bool   `yaml:"useSubDir"`
-	Email         string `yaml:"email"`
-	Password      string `yaml:"password"`
-	Authorization string `yaml:"authorization"`
-	ProxyUrl      string `yaml:"proxyUrl"`
-	ThreadNum     int    `yaml:"threadNum"`
-	MaxRetry      int    `yaml:"maxRetry"`
+	RootDir          string `yaml:"rootDir"`
+	UseSubDir        bool   `yaml:"useSubDir"`
+	Email            string `yaml:"email"`
+	Password         string `yaml:"password"`
+	Authorization    string `yaml:"authorization"`
+	ProxyUrl         string `yaml:"proxyUrl"`
+	ApiToken         string `yaml:"apiToken"`
+	FilenameTemplate string `yaml:"filenameTemplate"`
+	ThreadNum        int    `yaml:"threadNum"`
+	MaxRetry         int    `yaml:"maxRetry"`
 }
 
 func LoadConfig(cfg *Config, cfgfile ...string) error {

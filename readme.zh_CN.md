@@ -17,27 +17,80 @@ iwara.tv下载器支持功能：
 可用命令：
   completion  为指定shell生成自动补全脚本
   help        查看命令帮助
+  serve       启动守护进程模式
   version     打印版本号
 
 参数说明：
-  -u  --email string        登录邮箱
-  -p  --password string     登录密码
-      --auth-token string   授权令牌
-  -c, --config string       配置文件路径（默认为"config.yaml"）
-      --debug               启用调试日志
-  -h, --help                显示帮助信息
-  -l, --list-file string    URL列表文件路径
-      --max-retry int       最大重试次数（默认自动调整）
-      --proxy-url string    代理服务器地址
-  -r, --resume              恢复未完成的任务
-      --root-dir string     视频存储根目录
-      --thread-num int      并发下载线程数（默认自动调整）
-      --use-sub-dir         使用用户名作为子目录
-      --update-nfo          更新指定根目录下的nfo文件（--root-dir必须指定）
-      --update-delay        nfo文件更新间隔时间，单位秒（默认: 1）
+  -u  --email string              登录邮箱
+  -p  --password string           登录密码
+      --api-token string          daemon HTTP API 鉴权 token
+      --auth-token string         授权令牌
+  -c, --config string             配置文件路径（默认为"config.yaml"）
+      --debug                     启用调试日志
+  -h, --help                      显示帮助信息
+  -l, --list-file string          URL列表文件路径
+      --filename-template string  输出文件名模板
+      --max-retry int             最大重试次数（默认自动调整）
+      --proxy-url string          代理服务器地址
+  -r, --resume                    恢复未完成的任务
+      --root-dir string           视频存储根目录
+      --thread-num int            并发下载线程数（默认自动调整）
+      --use-sub-dir               使用用户名作为子目录
+      --update-nfo                更新指定根目录下的nfo文件（--root-dir必须指定）
+      --update-delay              nfo文件更新间隔时间，单位秒（默认: 1）
 
 使用"iwaradl [命令] --help"查看具体命令帮助信息。
 ```
+
+### 守护进程模式
+
+启动 daemon：
+
+```shell
+iwaradl serve --bind 127.0.0.1 --port 23456 --config config.yaml
+```
+
+daemon 模式必须提供 `--api-token`，或设置环境变量 `IWARADL_API_TOKEN`。
+`--bind` 默认值为 `127.0.0.1`。
+
+API 接口：
+
+- `POST /api/tasks` 提交下载任务
+- `GET /api/tasks` 查看全部任务
+- `GET /api/tasks/{vid}` 查看单个任务
+- `DELETE /api/tasks/{vid}` 删除单个待处理任务（仅 `pending` 可删除）
+
+详见 [API 文档](http-api.zh_CN.md)。
+
+提交任务示例：
+
+```shell
+curl -X POST http://127.0.0.1:23456/api/tasks \
+  -H "Authorization: Bearer <YOUR_API_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls":["https://www.iwara.tv/video/xxxx"],
+    "options":{
+      "download_dir":"daily",
+      "proxy_url":"http://127.0.0.1:7890",
+      "max_retry":2,
+      "filename_template":"{{title}}-{{video_id}}-{{quality}}"
+    }
+  }'
+```
+
+`options.download_dir` 同时支持相对路径和绝对路径。相对路径会自动拼接 `rootDir` 到前面。
+`options.download_dir` 也支持同一套模板变量，例如 `iwara/{{author_nickname}}`。
+
+文件名模板变量：
+
+- `{{now}}`（YYYY-MM-DD）
+- `{{publish_time}}`（YYYY-MM-DD）
+- `{{title}}`
+- `{{video_id}}`
+- `{{author}}`
+- `{{author_nickname}}`
+- `{{quality}}`
 
 ### config.yaml
 
@@ -47,7 +100,9 @@ useSubDir: false # 是否根据作者创建子目录
 email:  "" # 登录邮箱
 password: "" # 登录密码
 authorization: "" # 登录时用到的token，不含开头的"Bearer "
+apiToken: "" # daemon HTTP API 鉴权 token
 proxyUrl: "http://127.0.0.1:11081" # 代理地址
+filenameTemplate: "{{title}}-{{video_id}}" # 输出文件名模板
 threadNum: 4 # 同时进行的任务数
 maxRetry: 3 # 最大尝试下载次数
 ```

@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"iwaradl/config"
+	"iwaradl/downloader"
 	"iwaradl/util"
 	"os"
 	"strings"
@@ -12,21 +13,22 @@ import (
 )
 
 var (
-	configFile  string
-	listFile    string
-	resumeJob   bool
-	updateNfo   bool
-	updateDelay int
-	debug       bool
-	rootDir     string
-	useSubDir   bool
-	email       string
-	password    string
-	auth        string
-	proxyUrl    string
-	threadNum   int
-	maxRetry    int
-	vidList     []string
+	configFile       string
+	listFile         string
+	resumeJob        bool
+	updateNfo        bool
+	updateDelay      int
+	debug            bool
+	rootDir          string
+	useSubDir        bool
+	email            string
+	password         string
+	auth             string
+	apiToken         string
+	proxyUrl         string
+	filenameTemplate string
+	threadNum        int
+	maxRetry         int
 )
 
 // rootCmd represents the base command
@@ -45,51 +47,13 @@ var rootCmd = &cobra.Command{
 			return cmd.Help()
 		}
 
-		util.DebugLog("Loading config from file: %s", configFile)
-		err := config.LoadConfig(&config.Cfg, configFile)
-		if err != nil {
-			util.DebugLog("Failed to load config: %v", err)
-			// return err
-		}
-		// util.DebugLog("Config loaded successfully")
-
-		util.DebugLog("Processing command line flags")
-		// 命令行参数优先级高于配置文件
-		if rootDir != "" {
-			util.DebugLog("Using root directory from flag: %s", rootDir)
-			config.Cfg.RootDir = rootDir
-		}
-		if useSubDir {
-			config.Cfg.UseSubDir = useSubDir
-		}
-		if email != "" {
-			config.Cfg.Email = email
-		}
-		if password != "" {
-			config.Cfg.Password = password
-		}
-		if auth != "" {
-			config.Cfg.Authorization = auth
-		}
-		if proxyUrl != "" {
-			config.Cfg.ProxyUrl = proxyUrl
-		}
-		if threadNum > 0 {
-			config.Cfg.ThreadNum = threadNum
-		}
-		if maxRetry > 0 {
-			config.Cfg.MaxRetry = maxRetry
-		}
-
-		if debug {
-			util.Debug = true
-		}
+		initRuntimeConfig()
 
 		if updateNfo {
 			if rootDir == "" {
 				return errors.New("root-dir flag must be specified when updating nfo files")
 			}
-			UpdateNfoFiles(rootDir, updateDelay)
+			downloader.UpdateNfoFiles(rootDir, updateDelay)
 			return nil
 		}
 
@@ -97,11 +61,11 @@ var rootCmd = &cobra.Command{
 		// 处理下载任务
 		if resumeJob {
 			util.DebugLog("Resuming previous job")
-			vidList = LoadVidList()
+			downloader.LoadVidList()
 		}
 		if len(args) > 0 {
 			util.DebugLog("Processing %d URLs from command line arguments", len(args))
-			processUrlList(args)
+			downloader.VidList = append(downloader.VidList, downloader.ProcessUrlList(args)...)
 		}
 		if listFile != "" {
 			_, err := os.Stat(listFile)
@@ -116,16 +80,15 @@ var rootCmd = &cobra.Command{
 			for i, v := range urls {
 				urls[i] = strings.TrimRight(v, "\r")
 			}
-			processUrlList(urls)
+			downloader.VidList = append(downloader.VidList, downloader.ProcessUrlList(urls)...)
 		}
-		util.DebugLog("Saving video list with %d entries", len(vidList))
-		SaveVidList(vidList)
+		downloader.SaveVidList()
 
-		failed := len(vidList)
+		failed := len(downloader.VidList)
 		util.DebugLog("Starting download with %d videos", failed)
 		for i := 0; i < config.Cfg.MaxRetry && failed > 0; i++ {
 			util.DebugLog("Download attempt %d/%d", i+1, config.Cfg.MaxRetry)
-			failed = ConcurrentDownload()
+			failed = downloader.ConcurrentDownload()
 			if failed > 0 && i < config.Cfg.MaxRetry-1 {
 				util.DebugLog("%d videos failed to download, waiting 30s before retry", failed)
 				time.Sleep(30 * time.Second)
@@ -134,6 +97,54 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func initRuntimeConfig() {
+	util.DebugLog("Loading config from file: %s", configFile)
+	err := config.LoadConfig(&config.Cfg, configFile)
+	if err != nil {
+		util.DebugLog("Failed to load config: %v", err)
+	}
+
+	if debug {
+		util.Debug = true
+	}
+
+	util.DebugLog("Processing command line flags")
+	if rootDir != "" {
+		util.DebugLog("Using root directory from flag: %s", rootDir)
+		config.Cfg.RootDir = rootDir
+	}
+	if useSubDir {
+		config.Cfg.UseSubDir = useSubDir
+	}
+	if config.Cfg.ApiToken == "" {
+		config.Cfg.ApiToken = os.Getenv("IWARADL_API_TOKEN")
+	}
+	if email != "" {
+		config.Cfg.Email = email
+	}
+	if password != "" {
+		config.Cfg.Password = password
+	}
+	if auth != "" {
+		config.Cfg.Authorization = auth
+	}
+	if apiToken != "" {
+		config.Cfg.ApiToken = apiToken
+	}
+	if proxyUrl != "" {
+		config.Cfg.ProxyUrl = proxyUrl
+	}
+	if filenameTemplate != "" {
+		config.Cfg.FilenameTemplate = filenameTemplate
+	}
+	if threadNum > 0 {
+		config.Cfg.ThreadNum = threadNum
+	}
+	if maxRetry > 0 {
+		config.Cfg.MaxRetry = maxRetry
+	}
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -156,7 +167,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&email, "email", "u", "", "username for authentication")
 	rootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "password for authentication")
 	rootCmd.PersistentFlags().StringVar(&auth, "auth-token", "", "authorization token")
+	rootCmd.PersistentFlags().StringVar(&apiToken, "api-token", "", "token for daemon HTTP API authentication")
 	rootCmd.PersistentFlags().StringVar(&proxyUrl, "proxy-url", "", "proxy url")
+	rootCmd.PersistentFlags().StringVar(&filenameTemplate, "filename-template", "", "output filename template")
 	rootCmd.PersistentFlags().IntVar(&threadNum, "thread-num", -1, "concurrent download thread number")
 	rootCmd.PersistentFlags().IntVar(&maxRetry, "max-retry", -1, "max retry times")
 }
