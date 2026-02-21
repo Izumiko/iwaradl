@@ -272,8 +272,8 @@ func GetMaxPage(uid string) int {
 	}
 }
 
-// GetVideoList Get the video list of the user
-func GetVideoList(username string) []VideoInfo {
+// GetVideoListByUser Get the video list of the user
+func GetVideoListByUser(username string) []VideoInfo {
 	util.DebugLog("Starting to get user video list, username: %s", username)
 	profile, err := GetUserProfile(username)
 	if err != nil {
@@ -302,6 +302,20 @@ func GetVideoList(username string) []VideoInfo {
 	}
 	util.DebugLog("Completed getting user video list, total videos: %d", len(list))
 	return list
+}
+
+// GetVideoList Get video list
+// sort: "date", "trending", "popularity", "views", "likes"
+// page: 0, 1, 2, 3, ...
+// rating: "all", "general", "ecchi"
+func GetVideoList(sort string, page int, rating string) (list VideoList, err error) {
+	u := "https://apiq.iwara.tv/videos?sort=" + sort + "&page=" + strconv.Itoa(page) + "&rating=" + rating
+	data, err := Fetch(u, "")
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(data, &list)
+	return
 }
 
 //
