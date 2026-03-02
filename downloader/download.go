@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/cavaliergopher/grab/v3"
-	"github.com/dustin/go-humanize"
 )
 
 type ProgressReport struct {
@@ -214,7 +213,7 @@ func concurrentDownloadOnce(opts DownloadOptions) int {
 				resp := item.Resp
 				if resp != nil && resp.IsComplete() {
 					if resp.Err() == nil {
-						fmt.Printf("Download saved to %v \n", resp.Filename)
+						fmt.Printf("%s\n", util.FormatCompletionMessage(resp.Filename))
 						util.DebugLog("Download completed successfully: %s", item.VID)
 						SaveHistory(item.VID)
 						emitProgress(ProgressReport{VID: item.VID, BytesComplete: resp.Size(), BytesTotal: resp.Size(), Done: true, Success: true})
@@ -238,8 +237,8 @@ func concurrentDownloadOnce(opts DownloadOptions) int {
 					inProgress++
 					filename := filepath.Base(resp.Filename)
 					emitProgress(ProgressReport{VID: item.VID, BytesComplete: resp.BytesComplete(), BytesTotal: resp.Size(), Done: false, Success: false})
-					fmt.Printf("Downloading %s %s / %s (%.2f%%)\033[K\n",
-						filename, humanize.Bytes(uint64(resp.BytesComplete())), humanize.Bytes(uint64(resp.Size())), 100*resp.Progress())
+					statusLine := util.FormatDownloadStatus(filename, resp.BytesComplete(), resp.Size(), resp.Progress())
+					fmt.Printf("%s\033[K\n", statusLine)
 				}
 			}
 		}
