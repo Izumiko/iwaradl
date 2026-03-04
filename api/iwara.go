@@ -30,9 +30,7 @@ var (
 		"accept-encoding":           {"gzip, deflate, br, zstd"},
 		"accept-language":           {"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6"},
 		"content-type":              {"application/json"},
-		"origin":                    {"https://www.iwara.tv"},
 		"priority":                  {"u=1, i"},
-		"referer":                   {"https://www.iwara.tv/"},
 		"sec-ch-ua":                 {`\"Chromium\";v=\"133\", \"Google Chrome\";v=\"133\", \"Not_A Brand\";v=\"99\"`},
 		"sec-ch-ua-mobile":          {"?0"},
 		"sec-ch-ua-platform":        {`"Windows"`},
@@ -47,6 +45,7 @@ var (
 			"accept-encoding",
 			"accept-language",
 			"content-type",
+			"x-site",
 			"origin",
 			"priority",
 			"referer",
@@ -62,6 +61,14 @@ var (
 		},
 	}
 )
+
+func SwitchHeaders(host string) http.Header {
+	headers := commHeaders
+	headers.Set("x-site", host)
+	headers.Set("origin", "https://"+host)
+	headers.Set("referer", "https://"+host+"/")
+	return headers
+}
 
 func initClient(proxyURL string) error {
 	var err error
@@ -109,11 +116,11 @@ func ExecuteWithRuntimeOptions(proxyURL string, cookie string, fn func() int) in
 	return result
 }
 
-// GetVideoInfo Get the video info json from the API server
-func GetVideoInfo(id string) (info VideoInfo, err error) {
+// GetVideoInfo Get the video info JSON from the API server
+func GetVideoInfo(id string, host string) (info VideoInfo, err error) {
 	util.DebugLog("Starting to get video info, ID: %s", id)
 	u := "https://apiq.iwara.tv/video/" + id
-	body, err := Fetch(u, "")
+	body, err := Fetch(u, "", host)
 	if err != nil {
 		util.DebugLog("Failed to get video info: %v", err)
 		return
@@ -128,7 +135,7 @@ func GetVideoInfo(id string) (info VideoInfo, err error) {
 }
 
 // Fetch the url and return the response body
-func Fetch(u string, xversion string) (data []byte, err error) {
+func Fetch(u string, xversion string, host string) (data []byte, err error) {
 	util.DebugLog("Starting to request URL: %s", u)
 
 	req, err := http.NewRequest("GET", u, nil)
@@ -138,19 +145,19 @@ func Fetch(u string, xversion string) (data []byte, err error) {
 	}
 
 	req.Header = make(http.Header)
-	for k, v := range commHeaders {
+	for k, v := range SwitchHeaders(host) {
 		req.Header[k] = append([]string(nil), v...)
 	}
 
 	if (config.Cfg.Authorization != "" || config.Cfg.Email != "") && Token == "" {
 		util.DebugLog("Getting access token")
-		Token, err = GetAccessToken(config.Cfg.Authorization)
+		Token, err = GetAccessToken(config.Cfg.Authorization, host)
 		if err != nil {
 			// Try to refresh the authorization token
 			if config.Cfg.Email != "" && config.Cfg.Password != "" {
-				newAuth, refreshErr := RefreshAuthToken()
+				newAuth, refreshErr := RefreshAuthToken(host)
 				if refreshErr == nil {
-					Token, err = GetAccessToken(newAuth)
+					Token, err = GetAccessToken(newAuth, host)
 				} else {
 					util.DebugLog("Failed to refresh authorization token: %v", refreshErr)
 					//return nil, refreshErr
@@ -203,7 +210,7 @@ func SHA1(s string) string {
 }
 
 // GetVideoUrl Get the mp4 source url of the video info
-func GetVideoUrl(vi VideoInfo) (string, string) {
+func GetVideoUrl(vi VideoInfo, host string) (string, string) {
 	util.DebugLog("Starting to get video download URL, ID: %s", vi.Id)
 	u := vi.FileUrl
 	parsed, err := url.Parse(u)
@@ -214,7 +221,7 @@ func GetVideoUrl(vi VideoInfo) (string, string) {
 	expires := parsed.Query().Get("expires")
 	xv := vi.File.Id + "_" + expires + "_mSvL05GfEmeEmsEYfGCnVpEjYgTJraJN"
 	xversion := SHA1(xv)
-	body, err := Fetch(u, xversion)
+	body, err := Fetch(u, xversion, host)
 	if err != nil {
 		util.DebugLog("Failed to get video URL: %v", err)
 		return "", ""
@@ -240,9 +247,9 @@ func GetVideoUrl(vi VideoInfo) (string, string) {
 }
 
 // GetUserProfile Get user profile by username
-func GetUserProfile(username string) (profile UserProfile, err error) {
+func GetUserProfile(username string, host string) (profile UserProfile, err error) {
 	u := "https://apiq.iwara.tv/profile/" + username
-	body, err := Fetch(u, "")
+	body, err := Fetch(u, "", host)
 	if err != nil {
 		util.DebugLog("Failed to get user profile: %v", err)
 		return
@@ -252,9 +259,9 @@ func GetUserProfile(username string) (profile UserProfile, err error) {
 }
 
 // GetMaxPage Get the max page of the user's video list
-func GetMaxPage(uid string) int {
+func GetMaxPage(uid string, host string) int {
 	u := "https://apiq.iwara.tv/videos?limit=8&user=" + uid
-	body, err := Fetch(u, "")
+	body, err := Fetch(u, "", host)
 	if err != nil {
 		return -1
 	}
@@ -267,26 +274,26 @@ func GetMaxPage(uid string) int {
 		return 0
 	} else if vList.Count <= 32 {
 		return 1
-	} else {
-		return vList.Count/32 + 1
 	}
+
+	return vList.Count/32 + 1
 }
 
 // GetVideoListByUser Get the video list of the user
-func GetVideoListByUser(username string) []VideoInfo {
+func GetVideoListByUser(username string, host string) []VideoInfo {
 	util.DebugLog("Starting to get user video list, username: %s", username)
-	profile, err := GetUserProfile(username)
+	profile, err := GetUserProfile(username, host)
 	if err != nil {
 		util.DebugLog("Failed to get user info: %v", err)
 		return nil
 	}
 	uid := profile.User.Id
-	maxPage := GetMaxPage(uid)
+	maxPage := GetMaxPage(uid, host)
 	util.DebugLog("User ID: %s, max pages: %d", uid, maxPage)
 	var list []VideoInfo
 	for i := 0; i < maxPage; i++ {
 		u := "https://apiq.iwara.tv/videos?page=" + strconv.Itoa(i) + "&sort=date&user=" + uid
-		body, err := Fetch(u, "")
+		body, err := Fetch(u, "", host)
 		if err != nil {
 			util.DebugLog("Failed to get page %d: %v", i+1, err)
 			continue
@@ -308,9 +315,9 @@ func GetVideoListByUser(username string) []VideoInfo {
 // sort: "date", "trending", "popularity", "views", "likes"
 // page: 0, 1, 2, 3, ...
 // rating: "all", "general", "ecchi"
-func GetVideoList(sort string, page int, rating string) (list VideoList, err error) {
+func GetVideoList(sort string, page int, rating string, host string) (list VideoList, err error) {
 	u := "https://apiq.iwara.tv/videos?sort=" + sort + "&page=" + strconv.Itoa(page) + "&rating=" + rating
-	data, err := Fetch(u, "")
+	data, err := Fetch(u, "", host)
 	if err != nil {
 		return
 	}
@@ -350,7 +357,7 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 }
 
 // GetAccessToken Get access token using authorization token
-func GetAccessToken(auth string) (string, error) {
+func GetAccessToken(auth string, host string) (string, error) {
 	u := "https://apiq.iwara.tv/user/token"
 
 	req, err := http.NewRequest("POST", u, nil)
@@ -359,7 +366,7 @@ func GetAccessToken(auth string) (string, error) {
 	}
 
 	req.Header = make(http.Header)
-	for k, v := range commHeaders {
+	for k, v := range SwitchHeaders(host) {
 		req.Header[k] = append([]string(nil), v...)
 	}
 
@@ -396,7 +403,7 @@ func GetAccessToken(auth string) (string, error) {
 }
 
 // RefreshAuthToken Refresh Authorization Token with username and password
-func RefreshAuthToken() (string, error) {
+func RefreshAuthToken(host string) (string, error) {
 	u := "https://apiq.iwara.tv/user/login"
 
 	body := struct {
@@ -417,7 +424,7 @@ func RefreshAuthToken() (string, error) {
 	}
 
 	req.Header = make(http.Header)
-	for k, v := range commHeaders {
+	for k, v := range SwitchHeaders(host) {
 		req.Header[k] = append([]string(nil), v...)
 	}
 

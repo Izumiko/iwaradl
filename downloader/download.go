@@ -95,17 +95,18 @@ func ConcurrentDownloadWithOptions(opts DownloadOptions) int {
 }
 
 func DoChanVid(c *grab.Client, vidch <-chan string, respch chan<- downloadResult, opts DownloadOptions) {
-	for vid := range vidch {
+	for vidHost := range vidch {
+		vid, host := VidAndHost(vidHost)
 		util.DebugLog("Processing video ID: %s", vid)
 		emptyReq, _ := grab.NewRequest(vid, "")
-		vi, err := api.GetVideoInfo(vid)
+		vi, err := api.GetVideoInfo(vid, host)
 		if err != nil {
 			println(vid + ": " + err.Error())
 			resp := c.Do(emptyReq)
 			respch <- downloadResult{VID: vid, Resp: resp}
 			continue
 		}
-		u, quality := api.GetVideoUrl(vi)
+		u, quality := api.GetVideoUrl(vi, host)
 		if u == "" {
 			util.DebugLog("Failed to get video URL for ID: %s", vid)
 			println("Get video url " + vid + " failed")

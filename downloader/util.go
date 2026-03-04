@@ -17,14 +17,14 @@ import (
 var VidList []string
 
 // ParseUrl parse url to get vid or user
-func ParseUrl(u string) (vid string, user string, err error) {
+func ParseUrl(u string) (vid string, user string, host string, err error) {
 	util.DebugLog("Parsing URL: %s", u)
 	parsed, err := url.Parse(u)
 	if err != nil || parsed.Host == "" || parsed.Path == "" {
 		return
 	}
-	host := parsed.Hostname()
-	if !strings.Contains(host, "iwara.tv") {
+	host = parsed.Hostname()
+	if !strings.Contains(host, "iwara.tv") && !strings.Contains(host, "iwara.ai") {
 		err = errors.New("website error")
 		util.DebugLog("Invalid website host: %s", host)
 		return
@@ -69,23 +69,33 @@ func ProcessUrlList(urls []string) (vids []string) {
 	util.DebugLog("Processing URL list with %d URLs", len(urls))
 
 	for _, u := range urls {
-		vid, user, err := ParseUrl(u)
+		vid, user, host, err := ParseUrl(u)
 		if err != nil {
 			println(err.Error())
 			continue
 		}
 		if vid != "" {
-			vids = append(vids, vid)
+			vids = append(vids, vid+"@"+host)
 			util.DebugLog("Added video ID to list: %s", vid)
 		} else if user != "" {
 			util.DebugLog("Fetching video list for user: %s", user)
-			videos := api.GetVideoListByUser(user)
+			videos := api.GetVideoListByUser(user, host)
 			for _, vi := range videos {
-				vids = append(vids, vi.Id)
+				vids = append(vids, vi.Id+"@"+host)
 			}
 		}
 	}
 	return vids
+}
+
+// VidAndHost video id and host from combined video id and host
+func VidAndHost(vid string) (string, string) {
+	vh := strings.Split(vid, "@")
+	if len(vh) == 2 {
+		return vh[0], vh[1]
+	}
+
+	return vid, "www.iwara.tv"
 }
 
 // removeDuplicate remove duplicate items in slice
@@ -175,7 +185,8 @@ func SaveHistory(vid string) {
 }
 
 // FindHistory check if video is downloaded
-func FindHistory(vid string) bool {
+func FindHistory(vidHost string) bool {
+	vid, _ := VidAndHost(vidHost)
 	util.DebugLog("Checking history for video: %s", vid)
 	historyFile := filepath.Join(config.Cfg.RootDir, "history.list")
 	_, err := os.Stat(historyFile)

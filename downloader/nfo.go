@@ -105,11 +105,18 @@ func UpdateNfoFiles(rootDir string, delay int) {
 		}
 
 		// 2. Get new video info
-		videoInfo, err := api.GetVideoInfo(vid)
+		// TODO: better way to get host
+		videoInfo, err := api.GetVideoInfo(vid, "www.iwara.tv")
 		if err != nil {
-			util.DebugLog("Failed to get video info for %s: %v", vid, err)
+			util.DebugLog("Failed to get video info for %s on iwara.tv: %v", vid, err)
 			println("Error: " + err.Error())
-			continue
+			println("Trying www.iwara.ai...")
+			videoInfo, err = api.GetVideoInfo(vid, "www.iwara.ai")
+			if err != nil {
+				util.DebugLog("Failed to get video info for %s on iwara.ai: %v", vid, err)
+				println("Error: " + err.Error())
+				continue
+			}
 		}
 
 		// 3. Update info in nfo

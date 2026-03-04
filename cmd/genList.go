@@ -12,6 +12,9 @@ import (
 )
 
 var (
+	// Which site to query.
+	site = "www.iwara.tv"
+
 	// Sort strategy for list query.
 	sort = "trending"
 
@@ -81,7 +84,7 @@ func genVideoList() error {
 			time.Sleep(10 * time.Second)
 		}
 		fmt.Print("Getting page: ", page)
-		videos, err := api.GetVideoList(sort, page, rating)
+		videos, err := api.GetVideoList(sort, page, rating, site)
 		if err != nil {
 			return err
 		}
@@ -119,7 +122,7 @@ func genVideoList() error {
 		_ = f.Close()
 	}(f)
 	for _, video := range filteredVideolist {
-		_, err := f.WriteString("https://www.iwara.tv/video/" + video.Id + "\n")
+		_, err := f.WriteString("https://" + site + "/video/" + video.Id + "\n")
 		if err != nil {
 			return err
 		}
@@ -129,6 +132,10 @@ func genVideoList() error {
 }
 
 func validateGenListParams() error {
+	if site != "www.iwara.tv" && site != "www.iwara.ai" {
+		return fmt.Errorf("invalid --site %q, only www.iwara.tv and www.iwara.ai is supported", site)
+	}
+
 	if _, ok := validSortValues[sort]; !ok {
 		return fmt.Errorf("invalid --sort %q, allowed values: date, trending, popularity, views, likes", sort)
 	}
@@ -188,6 +195,7 @@ var genListCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(genListCmd)
+	genListCmd.Flags().StringVar(&site, "site", "www.iwara.tv", "Site to query. Allowed: www.iwara.tv, www.iwara.ai")
 	genListCmd.Flags().StringVar(&sort, "sort", "trending", "Sort strategy for list query. Allowed: date, trending, popularity, views, likes")
 	genListCmd.Flags().IntVar(&pageLimit, "page-limit", 1, "Number of list pages to fetch (must be > 0)")
 	genListCmd.Flags().IntVar(&dateLimit, "date-limit", 7, "Only keep videos created in the last N days (must be > 0)")
