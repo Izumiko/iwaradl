@@ -9,7 +9,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/flytam/filenamify v1.2.0
 	github.com/go-chi/chi/v5 v5.2.5
-	github.com/mattn/go-runewidth v0.0.20
+	github.com/mattn/go-runewidth v0.0.21
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/term v0.40.0
 	gopkg.in/yaml.v3 v3.0.1
