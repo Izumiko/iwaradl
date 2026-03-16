@@ -63,7 +63,10 @@ var (
 )
 
 func SwitchHeaders(host string) http.Header {
-	headers := commHeaders
+	headers := make(http.Header)
+	for k, v := range commHeaders {
+		headers[k] = append([]string(nil), v...)
+	}
 	headers.Set("x-site", host)
 	headers.Set("origin", "https://"+host)
 	headers.Set("referer", "https://"+host+"/")
