@@ -117,7 +117,7 @@ func truncateFromEnd(s string, maxWidth int) string {
 	return s
 }
 
-// FormatDownloadStatus formats download status with right-aligned progress info
+// FormatDownloadStatus formats download status with fixed-width progress on the left
 // filename: filename to display
 // bytesComplete: bytes downloaded
 // bytesTotal: total bytes
@@ -126,24 +126,30 @@ func FormatDownloadStatus(filename string, bytesComplete, bytesTotal int64, prog
 	// Get terminal width
 	termWidth := GetTerminalWidth()
 
-	// Format progress info
-	progressInfo := fmt.Sprintf("%s / %s (%.2f%%)",
-		humanize.Bytes(uint64(bytesComplete)),
-		humanize.Bytes(uint64(bytesTotal)),
-		progress*100)
+	// Add safety margin for emoji and special characters
+	safetyMargin := 10
+	effectiveWidth := termWidth - safetyMargin
 
-	// Calculate display width of progress info
-	progressWidth := runewidth.StringWidth(progressInfo)
+	// Format bytes with fixed width (right-aligned)
+	// Max display is "9999 GB" = 7 chars, so we use 8 chars for safety
+	bytesCompleteStr := humanize.Bytes(uint64(bytesComplete))
+	bytesTotalStr := humanize.Bytes(uint64(bytesTotal))
 
-	// Prefix "Downloading "
-	prefix := "Downloading "
-	prefixWidth := runewidth.StringWidth(prefix)
+	// Format progress info with fixed width format: [percentage] size/total
+	// Example: [ 26.90%]   76 MB/  284 MB
+	progressInfo := fmt.Sprintf("[%6.2f%%] %8s/%8s",
+		progress*100,
+		bytesCompleteStr,
+		bytesTotalStr)
 
-	// Minimum spacing between filename and progress info
-	minSpacing := 3
+	// Fixed width for progress section (9 + 1 + 8 + 1 + 8 = 27 chars)
+	progressWidth := 27
+
+	// Spacing between progress and filename
+	spacing := 2
 
 	// Calculate maximum width available for filename
-	maxFilenameWidth := termWidth - prefixWidth - progressWidth - minSpacing
+	maxFilenameWidth := effectiveWidth - progressWidth - spacing
 
 	// Use a reasonable minimum if available width is too small
 	if maxFilenameWidth < 10 {
@@ -152,18 +158,11 @@ func FormatDownloadStatus(filename string, bytesComplete, bytesTotal int64, prog
 
 	// Truncate filename if needed
 	displayFilename := TruncateMiddle(filename, maxFilenameWidth)
-	filenameWidth := runewidth.StringWidth(displayFilename)
 
-	// Calculate padding spaces needed
-	spacingWidth := termWidth - prefixWidth - filenameWidth - progressWidth
+	// Build final status line: progress + spacing + filename
+	result := progressInfo + strings.Repeat(" ", spacing) + displayFilename
 
-	// Ensure at least 1 space
-	if spacingWidth < 1 {
-		spacingWidth = 1
-	}
-
-	// Build final status line
-	return prefix + displayFilename + strings.Repeat(" ", spacingWidth) + progressInfo
+	return result
 }
 
 // CompressPath compresses directory names in a path (fish shell style)
@@ -264,12 +263,16 @@ func FormatCompletionMessage(filepath string) string {
 	// Get terminal width
 	termWidth := GetTerminalWidth()
 
+	// Add safety margin for emoji and special characters
+	safetyMargin := 5
+	effectiveWidth := termWidth - safetyMargin
+
 	// Prefix "Download saved to "
 	prefix := "Download saved to "
 	prefixWidth := runewidth.StringWidth(prefix)
 
 	// Calculate maximum width available for filepath
-	maxPathWidth := termWidth - prefixWidth - 1 // -1 for safety margin
+	maxPathWidth := effectiveWidth - prefixWidth
 
 	// Use a reasonable minimum if available width is too small
 	if maxPathWidth < 20 {
@@ -280,5 +283,19 @@ func FormatCompletionMessage(filepath string) string {
 	displayPath := CompressPath(filepath, maxPathWidth)
 
 	// Build final message
-	return prefix + displayPath
+	result := prefix + displayPath
+
+	// Final safety check
+	resultWidth := runewidth.StringWidth(result)
+	if resultWidth > effectiveWidth {
+		// Recalculate with more aggressive truncation
+		maxPathWidth = maxPathWidth - (resultWidth - effectiveWidth) - 5
+		if maxPathWidth < 10 {
+			maxPathWidth = 10
+		}
+		displayPath = CompressPath(filepath, maxPathWidth)
+		result = prefix + displayPath
+	}
+
+	return result
 }
