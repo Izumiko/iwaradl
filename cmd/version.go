@@ -12,7 +12,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number",
 	Long:  `Display the current version of iwaradl`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("iwaradl v1.5.2")
+		fmt.Println("iwaradl v1.5.3")
 	},
 }
 

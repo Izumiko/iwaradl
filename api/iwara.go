@@ -261,27 +261,6 @@ func GetUserProfile(username string, host string) (profile UserProfile, err erro
 	return
 }
 
-// GetMaxPage Get the max page of the user's video list
-func GetMaxPage(uid string, host string) int {
-	u := "https://apiq.iwara.tv/videos?limit=8&user=" + uid
-	body, err := Fetch(u, "", host)
-	if err != nil {
-		return -1
-	}
-	var vList VideoList
-	err = json.Unmarshal(body, &vList)
-	if err != nil {
-		return -1
-	}
-	if vList.Count <= 0 {
-		return 0
-	} else if vList.Count <= 32 {
-		return 1
-	}
-
-	return vList.Count/32 + 1
-}
-
 // GetVideoListByUser Get the video list of the user
 func GetVideoListByUser(username string, host string) []VideoInfo {
 	util.DebugLog("Starting to get user video list, username: %s", username)
@@ -290,24 +269,40 @@ func GetVideoListByUser(username string, host string) []VideoInfo {
 		util.DebugLog("Failed to get user info: %v", err)
 		return nil
 	}
+
 	uid := profile.User.Id
-	maxPage := GetMaxPage(uid, host)
-	util.DebugLog("User ID: %s, max pages: %d", uid, maxPage)
 	var list []VideoInfo
-	for i := 0; i < maxPage; i++ {
-		u := "https://apiq.iwara.tv/videos?page=" + strconv.Itoa(i) + "&sort=date&user=" + uid
+	retry := 3
+
+	for i := 0; ; i++ {
+		u := "https://apiq.iwara.tv/videos?rating=all&sort=date&page=" + strconv.Itoa(i) + "&user=" + uid
 		body, err := Fetch(u, "", host)
 		if err != nil {
 			util.DebugLog("Failed to get page %d: %v", i+1, err)
-			continue
+			if retry > 0 {
+				i--
+				retry--
+				continue
+			} else {
+				break
+			}
 		}
 		var vList VideoList
 		err = json.Unmarshal(body, &vList)
 		if err != nil {
 			util.DebugLog("Failed to parse page %d data: %v", i+1, err)
-			continue
+			if retry > 0 {
+				i--
+				retry--
+				continue
+			} else {
+				break
+			}
 		}
 		list = append(list, vList.Results...)
+		if len(vList.Results) < vList.Limit {
+			break
+		}
 		util.DebugLog("Successfully got page %d, current total videos: %d", i+1, len(list))
 	}
 	util.DebugLog("Completed getting user video list, total videos: %d", len(list))
