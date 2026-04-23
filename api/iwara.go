@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"iwaradl/config"
 	"iwaradl/util"
@@ -26,25 +27,22 @@ var (
 	runtimeCookie string
 	runtimeMu     sync.Mutex
 	commHeaders   = http.Header{
-		"accept":                    {"application/json"},
-		"accept-encoding":           {"gzip, deflate, br, zstd"},
-		"accept-language":           {"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6"},
-		"content-type":              {"application/json"},
-		"priority":                  {"u=1, i"},
-		"sec-ch-ua":                 {`\"Chromium\";v=\"133\", \"Google Chrome\";v=\"133\", \"Not_A Brand\";v=\"99\"`},
-		"sec-ch-ua-mobile":          {"?0"},
-		"sec-ch-ua-platform":        {`"Windows"`},
-		"sec-fetch-dest":            {"document"},
-		"sec-fetch-mode":            {"navigate"},
-		"sec-fetch-site":            {"none"},
-		"sec-fetch-user":            {"?1"},
-		"upgrade-insecure-requests": {"1"},
-		"user-agent":                {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.6831.68 Safari/537.36"},
+		"accept":             {"application/json, text/plain, */*"},
+		"accept-encoding":    {"gzip, deflate, br, zstd"},
+		"accept-language":    {"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6"},
+		"priority":           {"u=1, i"},
+		"sec-ch-ua":          {`"Google Chrome";v="146", "Not_A Brand";v="8", "Chromium";v="146"`},
+		"sec-ch-ua-mobile":   {"?0"},
+		"sec-ch-ua-platform": {`"Windows"`},
+		"sec-fetch-dest":     {"empty"},
+		"sec-fetch-mode":     {"cors"},
+		"sec-fetch-site":     {"same-site"},
+		"sec-gpc":            {"1"},
+		"user-agent":         {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"},
 		http.HeaderOrderKey: {
 			"accept",
 			"accept-encoding",
 			"accept-language",
-			"content-type",
 			"x-site",
 			"origin",
 			"priority",
@@ -55,8 +53,6 @@ var (
 			"sec-fetch-dest",
 			"sec-fetch-mode",
 			"sec-fetch-site",
-			"sec-fetch-user",
-			"upgrade-insecure-requests",
 			"user-agent",
 		},
 	}
@@ -73,11 +69,15 @@ func SwitchHeaders(host string) http.Header {
 	return headers
 }
 
+func defaultClientProfile() profiles.ClientProfile {
+	return profiles.Chrome_146_PSK
+}
+
 func initClient(proxyURL string) error {
 	var err error
 	options := []tlsClient.HttpClientOption{
 		tlsClient.WithTimeoutSeconds(60),
-		tlsClient.WithClientProfile(profiles.Chrome_133_PSK),
+		tlsClient.WithClientProfile(defaultClientProfile()),
 		//tlsClient.WithNotFollowRedirects(),
 		tlsClient.WithCookieJar(tlsClient.NewCookieJar()),
 		// tls_client.WithInsecureSkipVerify(),
@@ -122,7 +122,7 @@ func ExecuteWithRuntimeOptions(proxyURL string, cookie string, fn func() int) in
 // GetVideoInfo Get the video info JSON from the API server
 func GetVideoInfo(id string, host string) (info VideoInfo, err error) {
 	util.DebugLog("Starting to get video info, ID: %s", id)
-	u := "https://apiq.iwara.tv/video/" + id
+	u := "https://api.iwara.tv/video/" + id
 	body, err := Fetch(u, "", host)
 	if err != nil {
 		util.DebugLog("Failed to get video info: %v", err)
@@ -195,7 +195,13 @@ func Fetch(u string, xversion string, host string) (data []byte, err error) {
 	}(resp.Body)
 	if resp.StatusCode != 200 {
 		util.DebugLog("Invalid HTTP status code: %d", resp.StatusCode)
-		return nil, errors.New("http status code: " + strconv.Itoa(resp.StatusCode))
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			util.DebugLog("Failed to read error response body: %v", readErr)
+		}
+		err = formatHTTPError(resp, body)
+		util.DebugLog("HTTP error details: %v", err)
+		return nil, err
 	}
 	data, err = io.ReadAll(resp.Body)
 	if err != nil {
@@ -204,6 +210,49 @@ func Fetch(u string, xversion string, host string) (data []byte, err error) {
 	}
 	util.DebugLog("Successfully got response, data length: %d", len(data))
 	return
+}
+
+func formatHTTPError(resp *http.Response, body []byte) error {
+	parts := []string{"http status code: " + strconv.Itoa(resp.StatusCode)}
+
+	if v := headerValueIgnoreCase(resp.Header, "cf-mitigated"); v != "" {
+		parts = append(parts, "cf-mitigated="+v)
+	}
+	if v := headerValueIgnoreCase(resp.Header, "server"); v != "" {
+		parts = append(parts, "server="+v)
+	}
+	if v := headerValueIgnoreCase(resp.Header, "content-type"); v != "" {
+		parts = append(parts, "content-type="+v)
+	}
+	if snippet := summarizeErrorBody(body, 120); snippet != "" {
+		parts = append(parts, "body="+snippet)
+	}
+
+	return errors.New(strings.Join(parts, "; "))
+}
+
+func headerValueIgnoreCase(h http.Header, key string) string {
+	for headerKey, values := range h {
+		if strings.EqualFold(headerKey, key) && len(values) > 0 {
+			return values[0]
+		}
+	}
+	return ""
+}
+
+func summarizeErrorBody(body []byte, limit int) string {
+	if len(body) == 0 {
+		return ""
+	}
+
+	summary := strings.Join(strings.Fields(string(body)), " ")
+	if summary == "" {
+		return ""
+	}
+	if len(summary) > limit {
+		summary = summary[:limit] + "..."
+	}
+	return fmt.Sprintf("%s", summary)
 }
 
 func SHA1(s string) string {
@@ -251,7 +300,7 @@ func GetVideoUrl(vi VideoInfo, host string) (string, string) {
 
 // GetUserProfile Get user profile by username
 func GetUserProfile(username string, host string) (profile UserProfile, err error) {
-	u := "https://apiq.iwara.tv/profile/" + username
+	u := "https://api.iwara.tv/profile/" + username
 	body, err := Fetch(u, "", host)
 	if err != nil {
 		util.DebugLog("Failed to get user profile: %v", err)
@@ -275,7 +324,7 @@ func GetVideoListByUser(username string, host string) []VideoInfo {
 	retry := 3
 
 	for i := 0; ; i++ {
-		u := "https://apiq.iwara.tv/videos?rating=all&sort=date&page=" + strconv.Itoa(i) + "&user=" + uid
+		u := "https://api.iwara.tv/videos?rating=all&sort=date&page=" + strconv.Itoa(i) + "&user=" + uid
 		body, err := Fetch(u, "", host)
 		if err != nil {
 			util.DebugLog("Failed to get page %d: %v", i+1, err)
@@ -314,7 +363,7 @@ func GetVideoListByUser(username string, host string) []VideoInfo {
 // page: 0, 1, 2, 3, ...
 // rating: "all", "general", "ecchi"
 func GetVideoList(sort string, page int, rating string, host string) (list VideoList, err error) {
-	u := "https://apiq.iwara.tv/videos?sort=" + sort + "&page=" + strconv.Itoa(page) + "&rating=" + rating
+	u := "https://api.iwara.tv/videos?sort=" + sort + "&page=" + strconv.Itoa(page) + "&rating=" + rating
 	data, err := Fetch(u, "", host)
 	if err != nil {
 		return
@@ -356,7 +405,7 @@ func GetDetailInfo(vi VideoInfo) (DetailInfo, error) {
 
 // GetAccessToken Get access token using authorization token
 func GetAccessToken(auth string, host string) (string, error) {
-	u := "https://apiq.iwara.tv/user/token"
+	u := "https://api.iwara.tv/user/token"
 
 	req, err := http.NewRequest("POST", u, nil)
 	if err != nil {
@@ -367,6 +416,7 @@ func GetAccessToken(auth string, host string) (string, error) {
 	for k, v := range SwitchHeaders(host) {
 		req.Header[k] = append([]string(nil), v...)
 	}
+	req.Header.Set("content-type", "application/json")
 
 	req.Header.Set("Authorization", "Bearer "+auth)
 
@@ -402,7 +452,7 @@ func GetAccessToken(auth string, host string) (string, error) {
 
 // RefreshAuthToken Refresh Authorization Token with username and password
 func RefreshAuthToken(host string) (string, error) {
-	u := "https://apiq.iwara.tv/user/login"
+	u := "https://api.iwara.tv/user/login"
 
 	body := struct {
 		Email    string `json:"email"`
@@ -425,6 +475,7 @@ func RefreshAuthToken(host string) (string, error) {
 	for k, v := range SwitchHeaders(host) {
 		req.Header[k] = append([]string(nil), v...)
 	}
+	req.Header.Set("content-type", "application/json")
 
 	resp, err := Client.Do(req)
 	if err != nil {

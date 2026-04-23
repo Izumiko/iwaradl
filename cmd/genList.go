@@ -80,7 +80,7 @@ func genVideoList() error {
 	for page := 0; page < pageLimit; page++ {
 		if (page+1)%5 == 0 {
 			time.Sleep(time.Minute)
-		} else {
+		} else if page > 0 {
 			time.Sleep(10 * time.Second)
 		}
 		fmt.Print("Getting page: ", page)
