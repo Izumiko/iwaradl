@@ -99,6 +99,13 @@ func init() {
 	}
 }
 
+// ReinitClient re-creates the shared HTTP client with the proxy from the
+// current runtime config. Must be called after config file and CLI flags
+// have been loaded (the package-level init runs before that).
+func ReinitClient() error {
+	return initClient(config.Cfg.ProxyUrl)
+}
+
 func ExecuteWithRuntimeOptions(proxyURL string, cookie string, fn func() int) int {
 	runtimeMu.Lock()
 	defer runtimeMu.Unlock()

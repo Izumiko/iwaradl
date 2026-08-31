@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"iwaradl/api"
 	"iwaradl/config"
 	"iwaradl/downloader"
 	"iwaradl/util"
@@ -145,6 +146,13 @@ func initRuntimeConfig() {
 	}
 	if maxRetry > 0 {
 		config.Cfg.MaxRetry = maxRetry
+	}
+
+	// The shared API client is created at package init time, before the
+	// config file and CLI flags are loaded, so rebuild it now to apply
+	// the effective proxy settings.
+	if err := api.ReinitClient(); err != nil {
+		util.DebugLog("Failed to reinit API client: %v", err)
 	}
 }
 
